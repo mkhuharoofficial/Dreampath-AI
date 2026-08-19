@@ -1,0 +1,11 @@
+{
+  "name": "Remix Dreampath AI",
+  "description": "Premium, modern career guidance platform for Pakistani students powered by AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "AI Career Mentorship",
+    "Degree Blueprints",
+    "Career Roadmaps",
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

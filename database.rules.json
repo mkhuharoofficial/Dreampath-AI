@@ -1,0 +1,34 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)"
+      }
+    },
+    "appointments": {
+      ".read": "auth != null && (auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+      ".indexOn": ["userId", "timestamp", "status"],
+      "$appointmentId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+        ".write": "auth != null && (!data.exists() && newData.child('userId').val() === auth.uid || data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)"
+      }
+    },
+    "counseling_sessions": {
+      ".read": "auth != null && (auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+      ".indexOn": ["userId", "timestamp", "status"],
+      "$sessionId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+        ".write": "auth != null && (!data.exists() && newData.child('userId').val() === auth.uid || data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)"
+      }
+    },
+    "assessments": {
+      "$assessmentId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)",
+        ".write": "auth != null && (!data.exists() && newData.child('userId').val() === auth.uid || data.child('userId').val() === auth.uid || auth.token.email === 'dreampathai.official@gmail.com' || auth.uid === 'qwUnad3ZkZhqb2DQu8RnbSVsv3X2' || auth.token.isAdmin === true)"
+      }
+    }
+  }
+}

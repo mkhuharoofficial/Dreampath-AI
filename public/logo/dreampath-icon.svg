@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="pathGradientOrange" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="pathGradientNavy" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="studentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Clear canvas -->
+  <rect width="512" height="512" fill="none" />
+
+  <!-- Ascending Path Outer Track (Orange/Amber) -->
+  <path d="M 60 460 C 180 430 320 330 400 190 L 370 240 C 300 360 170 430 60 460 Z" fill="url(#pathGradientOrange)" />
+
+  <!-- Ascending Path Inner Track (Navy Blue) -->
+  <path d="M 190 460 C 270 420 350 330 400 190 L 380 280 C 320 370 230 430 190 460 Z" fill="url(#pathGradientNavy)" />
+
+  <!-- The Guiding Star / Spark at the top -->
+  <polygon points="415,100 425,140 465,150 425,160 415,200 405,160 365,150 405,140" fill="url(#starGradient)" />
+
+  <!-- Student Figure Walking Upward -->
+  <g fill="url(#studentGradient)">
+    <!-- Graduation Cap -->
+    <polygon points="260,65 315,85 260,105 205,85" />
+    <rect x="235" y="90" width="50" height="20" rx="3" />
+    <!-- Cap Tassel -->
+    <path d="M 215 88 Q 200 110 202 140" stroke="#0f172a" stroke-width="5" fill="none" stroke-linecap="round" />
+
+    <!-- Head -->
+    <circle cx="260" cy="135" r="28" />
+
+    <!-- Backpack -->
+    <path d="M 185 180 C 170 180 160 200 165 240 C 170 270 185 285 200 280 L 205 185 Z" />
+
+    <!-- Body / Torso -->
+    <path d="M 220 175 C 240 170 275 175 290 195 C 305 215 295 245 280 255 L 235 255 Z" />
+
+    <!-- Backpack Straps -->
+    <path d="M 225 180 Q 200 210 235 245" stroke="#ffffff" stroke-width="8" fill="none" stroke-linecap="round" />
+
+    <!-- Left Leg (Walking Backwards down the slope) -->
+    <path d="M 240 250 L 200 320 L 175 385 C 165 400 185 415 195 400 L 220 340 L 255 270 Z" />
+
+    <!-- Right Leg (Stepping Forward Upwards) -->
+    <path d="M 265 250 L 290 310 L 315 360 C 325 375 350 365 340 350 L 305 300 L 280 250 Z" />
+  </g>
+</svg>
