@@ -103,12 +103,18 @@
 /* =========================================================================
    Print & PDF Export Optimization Styles
    ========================================================================= */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #0f172a !important;
-    font-size: 11pt !important;
-    line-height: 1.6 !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+    overflow: visible !important;
   }
 
   /* Hide interactive non-printable elements */
@@ -127,6 +133,7 @@
 
   /* Prevent awkward page cuts */
   .glass-card,
+  .glass-card-interactive,
   .report-section-card,
   article,
   section,
@@ -136,18 +143,23 @@
   blockquote {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    margin-bottom: 1.5rem !important;
+    margin-bottom: 1.25rem !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
   }
 
   h1, h2, h3, h4, h5, h6 {
     break-after: avoid !important;
     page-break-after: avoid !important;
     color: #0f172a !important;
+    margin-bottom: 0.5rem !important;
   }
 
   p, li, td, th {
     color: #1e293b !important;
     line-height: 1.6 !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
   }
 
   a {

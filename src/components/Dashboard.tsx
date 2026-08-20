@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { DomainType, Degree } from '../types';
 import { DOMAINS, DEGREES } from '../data';
-import CareerMotivation from './CareerMotivation';
 import { generate2026RoadmapsPDF } from '../utils/roadmapPdfGenerator';
 import { LogoImage } from './LogoImage';
 
@@ -373,11 +372,6 @@ export default function Dashboard({ onSelectDegree, onViewFullGuide, favoriteIds
           </div>
         </div>
       )}
-
-      {/* Animated Career Motivation Quotes Ticker */}
-      <div className="mb-10">
-        <CareerMotivation />
-      </div>
 
       {/* Domain Selection */}
       <div className="mb-14 relative z-10">

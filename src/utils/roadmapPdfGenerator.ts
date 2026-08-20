@@ -4,7 +4,7 @@ import { getLogoDataUrl } from './logoHelper';
 
 /**
  * Generates a clean, professional, high-contrast 2026 Career Roadmaps PDF handbook
- * with zero text overlapping, explicit line heights, and consistent margins.
+ * with zero text overlapping, explicit line heights, safe baseline offsets, and consistent margins.
  */
 export const generate2026RoadmapsPDF = async (): Promise<void> => {
   const doc = new jsPDF({
@@ -17,7 +17,8 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
   const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
   const margin = 14;
   const contentWidth = pageWidth - (margin * 2); // 182mm
-  const printableBottom = pageHeight - 18; // safe zone before footer
+  const topSafeY = 24; // Safe Y below running header
+  const printableBottom = pageHeight - 18; // Safe zone before running footer
 
   // Load logo data URL
   let logoDataUrl: string | null = null;
@@ -28,13 +29,13 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
   }
 
   // Header & Footer helper
-  const addHeaderFooter = (pageNum: number, totalPages: number, pageTitle: string = 'Dreampath AI 2026 Career Roadmaps') => {
-    // Watermark (subtle high-contrast readable opacity)
+  const addHeaderFooter = (pageNum: number, pageTitle: string = 'Dreampath AI 2026 Career Roadmaps') => {
+    // Watermark (subtle readable opacity)
     try {
       doc.saveGraphicsState();
       doc.setTextColor(241, 245, 249); // slate-100
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(42);
+      doc.setFontSize(38);
       doc.text('DREAMPATH AI', pageWidth / 2, pageHeight / 2, {
         align: 'center',
         angle: 45
@@ -46,13 +47,13 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
 
     // Top Header Bar
     doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageWidth, 16, 'F');
+    doc.rect(0, 0, pageWidth, 15, 'F');
     doc.setFillColor(37, 99, 235); // blue-600 accent
-    doc.rect(0, 15.2, pageWidth, 0.8, 'F');
+    doc.rect(0, 14.2, pageWidth, 0.8, 'F');
 
     if (logoDataUrl) {
       try {
-        doc.addImage(logoDataUrl, 'PNG', margin, 2.5, 11, 11);
+        doc.addImage(logoDataUrl, 'PNG', margin, 2, 11, 11);
       } catch {
         // ignored
       }
@@ -61,13 +62,13 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('DREAMPATH AI — 2026 CAREER ROADMAPS', logoDataUrl ? margin + 14 : margin, 10.5);
+    doc.text('DREAMPATH AI — 2026 CAREER ROADMAPS', logoDataUrl ? margin + 14 : margin, 10);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(203, 213, 225); // slate-300
     const safeTitle = doc.splitTextToSize(pageTitle, 75)[0] || pageTitle;
-    doc.text(safeTitle, pageWidth - margin, 10.5, { align: 'right' });
+    doc.text(safeTitle, pageWidth - margin, 10, { align: 'right' });
 
     // Bottom Footer Bar
     doc.setFillColor(248, 250, 252); // slate-50
@@ -113,7 +114,7 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
   // Cover Main Title
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(30);
+  doc.setFontSize(28);
   doc.text('2026 CAREER', margin, 125);
   
   doc.setTextColor(56, 189, 248); // Electric Cyan
@@ -121,69 +122,69 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
 
   doc.setTextColor(226, 232, 240); // Slate 200
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(13);
-  doc.text('Comprehensive Degree & Career Pathways for Students in Pakistan', margin, 152);
+  doc.setFontSize(12);
+  doc.text('Comprehensive Degree & Career Pathways for Students in Pakistan', margin, 150);
 
   // Description Card
   doc.setFillColor(30, 41, 59);
   doc.setDrawColor(51, 65, 85);
-  doc.roundedRect(margin, 168, contentWidth, 32, 3, 3, 'FD');
+  doc.roundedRect(margin, 165, contentWidth, 34, 3, 3, 'FD');
 
   doc.setTextColor(241, 245, 249);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('OFFICIAL CAREER GUIDANCE HANDBOOK', margin + 6, 178);
+  doc.setFontSize(10.5);
+  doc.text('OFFICIAL CAREER GUIDANCE HANDBOOK', margin + 6, 175);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
   doc.setTextColor(203, 213, 225);
-  doc.text('Structured 21-point career pathways covering Technology, Healthcare, Engineering,', margin + 6, 186);
-  doc.text('Business, Emerging AI fields, and Legal professions in Pakistan.', margin + 6, 192);
+  doc.text('Structured 21-point career pathways covering Technology, Healthcare, Engineering,', margin + 6, 183);
+  doc.text('Business, Emerging AI fields, and Legal professions in Pakistan.', margin + 6, 189);
 
   // Founder & Edition Metadata Box
   doc.setFillColor(15, 23, 42);
   doc.setDrawColor(37, 99, 235);
-  doc.roundedRect(margin, 235, contentWidth, 34, 3, 3, 'FD');
+  doc.roundedRect(margin, 230, contentWidth, 36, 3, 3, 'FD');
 
   doc.setTextColor(203, 213, 225);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('Founder & Platform Architect:', margin + 6, 244);
+  doc.setFontSize(9.5);
+  doc.text('Founder & Platform Architect:', margin + 6, 240);
   
   doc.setTextColor(56, 189, 248);
   doc.setFontSize(12);
-  doc.text('Muhammad Khan Khuharo', margin + 6, 252);
+  doc.text('Muhammad Khan Khuharo', margin + 6, 248);
 
   doc.setTextColor(148, 163, 184);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text('Dreampath AI Career Guidance Platform • 2026 Official Student Edition', margin + 6, 260);
+  doc.setFontSize(8.5);
+  doc.text('Dreampath AI Career Guidance Platform • 2026 Official Student Edition', margin + 6, 256);
 
   // ==========================================
   // PAGE 2: TABLE OF CONTENTS
   // ==========================================
   doc.addPage();
   let pageNumCounter = 2;
-  addHeaderFooter(pageNumCounter, 0, 'Table of Contents');
+  addHeaderFooter(pageNumCounter, 'Table of Contents');
 
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('Table of Contents', margin, 26);
+  doc.setFontSize(16);
+  doc.text('Table of Contents', margin, topSafeY + 4);
 
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105); // slate-600
-  doc.text('Comprehensive list of degree blueprints and career roadmaps included in this handbook:', margin, 33);
+  doc.text('Comprehensive list of degree blueprints and career roadmaps included in this handbook:', margin, topSafeY + 11);
 
-  let y = 41;
+  let y = topSafeY + 18;
 
   DEGREES.forEach((deg, idx) => {
     if (y > printableBottom - 14) {
       doc.addPage();
       pageNumCounter++;
-      addHeaderFooter(pageNumCounter, 0, 'Table of Contents (Contd.)');
-      y = 26;
+      addHeaderFooter(pageNumCounter, 'Table of Contents (Contd.)');
+      y = topSafeY;
     }
 
     doc.setFillColor(248, 250, 252); // slate-50
@@ -193,7 +194,7 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
     // Number tag
     doc.setTextColor(79, 70, 229); // Indigo 600
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.text(`#${idx + 1}`, margin + 4, y + 7);
 
     // Degree Title
@@ -205,7 +206,7 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
     // Domain & Duration
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(71, 85, 105); // Slate 600
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.text(`${deg.domain} • ${deg.duration}`, pageWidth - margin - 4, y + 7, { align: 'right' });
 
     y += 13.5;
@@ -217,9 +218,9 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
   DEGREES.forEach((deg) => {
     doc.addPage();
     pageNumCounter++;
-    addHeaderFooter(pageNumCounter, 0, deg.title);
+    addHeaderFooter(pageNumCounter, deg.title);
 
-    let curY = 24;
+    let curY = topSafeY;
 
     // Header Banner
     doc.setFillColor(15, 23, 42); // Slate 900
@@ -227,14 +228,14 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
+    doc.setFontSize(12.5);
     const degreeTitleWrapped = doc.splitTextToSize(deg.title, contentWidth - 12);
     doc.text(degreeTitleWrapped[0], margin + 6, curY + 8);
 
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(56, 189, 248); // Cyan
-    doc.text(`Domain: ${deg.domain}   |   Category: ${deg.category}   |   Duration: ${deg.duration}`, margin + 6, curY + 16);
+    doc.text(`Domain: ${deg.domain}   |   Category: ${deg.category}   |   Duration: ${deg.duration}`, margin + 6, curY + 15.5);
 
     curY += 26;
 
@@ -242,12 +243,12 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
     const addSectionBlock = (title: string, items: string[] | string) => {
       if (!items || (Array.isArray(items) && items.length === 0)) return;
 
-      // Ensure space for section header + initial content lines
+      // Ensure space for section header
       if (curY > printableBottom - 20) {
         doc.addPage();
         pageNumCounter++;
-        addHeaderFooter(pageNumCounter, 0, deg.title);
-        curY = 24;
+        addHeaderFooter(pageNumCounter, deg.title);
+        curY = topSafeY;
       }
 
       // Section Header Banner
@@ -257,18 +258,18 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
       doc.setFillColor(37, 99, 235); // blue-600 accent bar
       doc.rect(margin, curY, 3.5, 6.5, 'F');
 
-      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setTextColor(15, 23, 42); // slate-900 (crisp contrast)
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.text(title, margin + 6, curY + 4.5);
 
-      curY += 9;
+      curY += 8.5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
-      doc.setTextColor(30, 41, 59); // slate-800 (high contrast)
+      doc.setTextColor(30, 41, 59); // slate-800
 
-      const lineHeight = 4.3; // mm
+      const lineHeight = 4.3; // mm per line
 
       if (Array.isArray(items)) {
         items.forEach((item) => {
@@ -279,12 +280,15 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
           if (curY + blockHeight > printableBottom) {
             doc.addPage();
             pageNumCounter++;
-            addHeaderFooter(pageNumCounter, 0, deg.title);
-            curY = 24;
+            addHeaderFooter(pageNumCounter, deg.title);
+            curY = topSafeY;
           }
 
-          doc.text(splitLines, margin + 4, curY);
-          curY += blockHeight + 1.2;
+          // Render each line explicitly with safe baseline
+          for (let li = 0; li < splitLines.length; li++) {
+            doc.text(splitLines[li], margin + 4, curY + 3.2 + (li * lineHeight));
+          }
+          curY += blockHeight + 1.5;
         });
       } else {
         const splitLines = doc.splitTextToSize(items, contentWidth - 8);
@@ -293,15 +297,17 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
         if (curY + blockHeight > printableBottom) {
           doc.addPage();
           pageNumCounter++;
-          addHeaderFooter(pageNumCounter, 0, deg.title);
-          curY = 24;
+          addHeaderFooter(pageNumCounter, deg.title);
+          curY = topSafeY;
         }
 
-        doc.text(splitLines, margin + 4, curY);
-        curY += blockHeight + 1.5;
+        for (let li = 0; li < splitLines.length; li++) {
+          doc.text(splitLines[li], margin + 4, curY + 3.2 + (li * lineHeight));
+        }
+        curY += blockHeight + 2;
       }
 
-      curY += 2.5; // Gap before next section
+      curY += 2; // Gap before next section
     };
 
     // 21 Structured Roadmap Attributes
@@ -331,3 +337,4 @@ export const generate2026RoadmapsPDF = async (): Promise<void> => {
   // Download PDF
   doc.save('Dreampath_AI_2026_Career_Roadmaps.pdf');
 };
+

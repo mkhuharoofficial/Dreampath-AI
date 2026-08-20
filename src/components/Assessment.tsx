@@ -744,6 +744,13 @@ Based on my background, goals, and answers, please provide:
       yPos += 34;
 
       // Section: Top Recommended Pathways
+      if (yPos > printableBottom - 35) {
+        doc.addPage();
+        currentPage++;
+        addHeaderAndFooter(currentPage);
+        yPos = 24;
+      }
+
       doc.setFillColor(241, 245, 249);
       doc.rect(margin, yPos, contentWidth, 7, 'F');
       doc.setFillColor(37, 99, 235);
@@ -757,6 +764,13 @@ Based on my background, goals, and answers, please provide:
       yPos += 11;
 
       topMatches.forEach((deg, idx) => {
+        if (yPos > printableBottom - 24) {
+          doc.addPage();
+          currentPage++;
+          addHeaderAndFooter(currentPage);
+          yPos = 24;
+        }
+
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
         doc.roundedRect(margin, yPos, contentWidth, 20, 2, 2, 'FD');
@@ -768,7 +782,7 @@ Based on my background, goals, and answers, please provide:
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
-        doc.setTextColor(51, 65, 85);
+        doc.setTextColor(30, 41, 59); // Slate 800 for high contrast
         const startingSal = deg.salaryTable?.[0] ? `${deg.salaryTable[0].level}: ${deg.salaryTable[0].salary}` : 'High Demand';
         doc.text(`Duration: ${deg.duration}  |  Domain: ${deg.domain}`, margin + 5, yPos + 11.5);
         doc.text(`Category: ${deg.category}  |  Starting Salary: ${startingSal}`, margin + 5, yPos + 16.5);
@@ -779,7 +793,7 @@ Based on my background, goals, and answers, please provide:
       yPos += 3;
 
       // Section: 12-Question Breakdown
-      if (yPos > printableBottom - 25) {
+      if (yPos > printableBottom - 30) {
         doc.addPage();
         currentPage++;
         addHeaderAndFooter(currentPage);
@@ -805,8 +819,8 @@ Based on my background, goals, and answers, please provide:
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
-        const splitAnswer = doc.splitTextToSize(ansText, contentWidth - 12);
-        const itemBlockHeight = 6 + (splitAnswer.length * 4.2) + 3;
+        const splitAnswer = doc.splitTextToSize(ansText, contentWidth - 14);
+        const itemBlockHeight = 5 + (splitAnswer.length * 4.3) + 3;
 
         if (yPos + itemBlockHeight > printableBottom) {
           doc.addPage();
@@ -821,10 +835,12 @@ Based on my background, goals, and answers, please provide:
         doc.setTextColor(15, 23, 42);
         doc.text(`Q${q.id}.  ${q.title}:`, margin + 2, yPos + 4);
 
-        // Answer Text
+        // Answer Text (Line-by-line render)
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(51, 65, 85);
-        doc.text(splitAnswer, margin + 8, yPos + 9);
+        doc.setTextColor(30, 41, 59); // Slate 800
+        for (let li = 0; li < splitAnswer.length; li++) {
+          doc.text(splitAnswer[li], margin + 8, yPos + 8.5 + (li * 4.3));
+        }
 
         yPos += itemBlockHeight;
       });

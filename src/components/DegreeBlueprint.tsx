@@ -160,8 +160,8 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
 
     // --- 1. COVER / HEADER SECTION ---
     const summaryText = `"${degree.summary}"`;
-    const summaryLines = doc.splitTextToSize(summaryText, pageWidth - 70);
-    const headerHeight = Math.max(50, 34 + (summaryLines.length * 4.5));
+    const summaryLines = doc.splitTextToSize(summaryText, pageWidth - 72);
+    const headerHeight = Math.max(50, 36 + (summaryLines.length * 4.4));
 
     doc.setFillColor(15, 23, 42); // Slate 900
     doc.roundedRect(15, y, pageWidth - 30, headerHeight, 3, 3, 'F');
@@ -179,28 +179,30 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
     const titleLines = doc.splitTextToSize(degree.title.toUpperCase(), pageWidth - 75);
-    doc.text(titleLines[0], 22, y + 12);
+    doc.text(titleLines[0], 22, y + 11);
     
     doc.setFont('Helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(56, 189, 248); // Cyan 400
-    doc.text(`${degree.domain.toUpperCase()} DOMAIN  |  ${degree.duration.toUpperCase()} PROGRAM`, 22, y + 19);
+    doc.text(`${degree.domain.toUpperCase()} DOMAIN  |  ${degree.duration.toUpperCase()} PROGRAM`, 22, y + 18);
     
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(226, 232, 240); // Slate 200
-    doc.text(summaryLines, 22, y + 26);
+    for (let li = 0; li < summaryLines.length; li++) {
+      doc.text(summaryLines[li], 22, y + 25 + (li * 4.2));
+    }
 
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text('Dreampath AI Guidance Edition • Muhammad Khan Khuharo', 22, y + headerHeight - 5);
+    doc.text('Dreampath AI Guidance Edition • Muhammad Khan Khuharo', 22, y + headerHeight - 4);
     
     y += headerHeight + 8;
 
     // Helper for Section Headers
     const addSectionHeader = (title: string) => {
-      checkSpace(16);
+      checkSpace(18);
       doc.setFillColor(241, 245, 249);
       doc.rect(15, y, pageWidth - 30, 6.5, 'F');
 
@@ -208,7 +210,7 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
       doc.rect(15, y, 3.5, 6.5, 'F');
 
       doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(9.5);
+      doc.setFontSize(9);
       doc.setTextColor(15, 23, 42); // Slate 900
       doc.text(title.toUpperCase(), 22, y + 4.5);
       
@@ -222,11 +224,13 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setTextColor(30, 41, 59); // Slate 800
     
     degree.description.forEach((desc) => {
-      const wrappedDesc = doc.splitTextToSize(`•  ${desc}`, pageWidth - 32);
-      const height = wrappedDesc.length * 4.3;
-      checkSpace(height + 2);
-      doc.text(wrappedDesc, 16, y);
-      y += height + 2;
+      const wrappedDesc = doc.splitTextToSize(`•  ${desc}`, pageWidth - 34);
+      const height = (wrappedDesc.length * 4.3) + 2;
+      checkSpace(height);
+      for (let li = 0; li < wrappedDesc.length; li++) {
+        doc.text(wrappedDesc[li], 16, y + 3.2 + (li * 4.3));
+      }
+      y += height;
     });
     
     y += 3;
@@ -236,24 +240,26 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     
-    let colWidth = (pageWidth - 32) / 2;
+    let colWidth = (pageWidth - 34) / 2;
     for (let i = 0; i < degree.subjects.length; i += 2) {
-      checkSpace(7.5);
+      checkSpace(8);
       const sub1 = degree.subjects[i];
       const sub2 = degree.subjects[i + 1] || '';
       
+      const wrappedSub1 = doc.splitTextToSize(sub1, colWidth - 10);
       doc.setFillColor(248, 250, 252);
-      doc.rect(15, y - 3.5, colWidth - 2, 6, 'F');
+      doc.rect(15, y, colWidth - 2, 7, 'F');
       doc.setTextColor(79, 70, 229);
       doc.setFont('Helvetica', 'bold');
-      doc.text(`[ ]  ${sub1}`, 18, y + 0.5);
+      doc.text(`[ ]  ${wrappedSub1[0]}`, 18, y + 4.5);
       
       if (sub2) {
+        const wrappedSub2 = doc.splitTextToSize(sub2, colWidth - 10);
         doc.setFillColor(248, 250, 252);
-        doc.rect(15 + colWidth, y - 3.5, colWidth - 2, 6, 'F');
-        doc.text(`[ ]  ${sub2}`, 18 + colWidth, y + 0.5);
+        doc.rect(15 + colWidth, y, colWidth - 2, 7, 'F');
+        doc.text(`[ ]  ${wrappedSub2[0]}`, 18 + colWidth, y + 4.5);
       }
-      y += 7.5;
+      y += 8.5;
     }
     
     y += 3;
@@ -264,21 +270,23 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setFontSize(8.5);
     
     degree.marketReality.forEach((mr) => {
-      const wrappedMr = doc.splitTextToSize(`•  ${mr}`, pageWidth - 36);
-      const height = wrappedMr.length * 4.3;
-      checkSpace(height + 4);
+      const wrappedMr = doc.splitTextToSize(`•  ${mr}`, pageWidth - 40);
+      const blockHeight = (wrappedMr.length * 4.3) + 5;
+      checkSpace(blockHeight + 2);
       doc.setFillColor(254, 243, 199); // Amber 100
-      doc.roundedRect(15, y - 3, pageWidth - 30, height + 4, 1.5, 1.5, 'F');
+      doc.roundedRect(15, y, pageWidth - 30, blockHeight, 1.5, 1.5, 'F');
       doc.setTextColor(146, 64, 14); // Amber 800
-      doc.text(wrappedMr, 18, y + 1);
-      y += height + 5;
+      for (let li = 0; li < wrappedMr.length; li++) {
+        doc.text(wrappedMr[li], 18, y + 4 + (li * 4.3));
+      }
+      y += blockHeight + 3;
     });
 
     y += 3;
 
     // --- 5. KEY JOB ROLES & WORK SECTORS ---
     checkSpace(35);
-    const midPoint = (pageWidth - 30) / 2;
+    const midPoint = (pageWidth - 32) / 2;
     
     addSectionHeader('Job Roles & Work Sectors');
     
@@ -288,31 +296,35 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
-    doc.text('KEY JOB ROLES', 16, y);
-    doc.text('WORK SECTORS', 16 + midPoint, y);
+    doc.text('KEY JOB ROLES', 16, y + 4);
+    doc.text('WORK SECTORS', 16 + midPoint, y + 4);
     
     doc.setLineWidth(0.5);
     doc.setDrawColor(203, 213, 225);
-    doc.line(16, y + 2, 16 + midPoint - 5, y + 2);
-    doc.line(16 + midPoint, y + 2, pageWidth - 16, y + 2);
+    doc.line(16, y + 6, 16 + midPoint - 5, y + 6);
+    doc.line(16 + midPoint, y + 6, pageWidth - 16, y + 6);
     
-    leftY += 7;
-    rightY += 7;
+    leftY += 10;
+    rightY += 10;
     
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(30, 41, 59);
     
     degree.jobRoles.forEach((role) => {
-      const wrapped = doc.splitTextToSize(`•  ${role}`, midPoint - 6);
-      doc.text(wrapped, 16, leftY);
-      leftY += (wrapped.length * 4.2) + 1.5;
+      const wrapped = doc.splitTextToSize(`•  ${role}`, midPoint - 8);
+      for (let li = 0; li < wrapped.length; li++) {
+        doc.text(wrapped[li], 16, leftY + 3.2 + (li * 4.2));
+      }
+      leftY += (wrapped.length * 4.2) + 2;
     });
     
     degree.keySectors.forEach((sector) => {
-      const wrapped = doc.splitTextToSize(`•  ${sector}`, midPoint - 6);
-      doc.text(wrapped, 16 + midPoint, rightY);
-      rightY += (wrapped.length * 4.2) + 1.5;
+      const wrapped = doc.splitTextToSize(`•  ${sector}`, midPoint - 8);
+      for (let li = 0; li < wrapped.length; li++) {
+        doc.text(wrapped[li], 16 + midPoint, rightY + 3.2 + (li * 4.2));
+      }
+      rightY += (wrapped.length * 4.2) + 2;
     });
     
     y = Math.max(leftY, rightY) + 5;
@@ -323,28 +335,28 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
     
-    checkSpace(12);
+    checkSpace(14);
     doc.setFillColor(241, 245, 249);
-    doc.rect(15, y - 3, pageWidth - 30, 7, 'F');
-    doc.text('CAREER LEVEL', 18, y + 1.5);
-    doc.text('TYPICAL MONTHLY SALARY', pageWidth - 18, y + 1.5, { align: 'right' });
-    y += 7.5;
+    doc.rect(15, y, pageWidth - 30, 7, 'F');
+    doc.text('CAREER LEVEL', 18, y + 4.5);
+    doc.text('TYPICAL MONTHLY SALARY', pageWidth - 18, y + 4.5, { align: 'right' });
+    y += 8;
     
     degree.salaryTable.forEach((row, idx) => {
-      checkSpace(7.5);
+      checkSpace(8);
       if (idx % 2 === 0) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(15, y - 3, pageWidth - 30, 7, 'F');
+        doc.rect(15, y, pageWidth - 30, 7, 'F');
       }
 
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(30, 41, 59);
-      doc.text(row.level, 18, y + 1);
+      doc.text(row.level, 18, y + 4.5);
 
       doc.setFont('Helvetica', 'bold');
       doc.setTextColor(13, 148, 136); // Teal 600
-      doc.text(row.salary, pageWidth - 18, y + 1, { align: 'right' });
+      doc.text(row.salary, pageWidth - 18, y + 4.5, { align: 'right' });
 
       y += 7.5;
     });
@@ -356,24 +368,26 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     
     degree.roadmap.forEach((step) => {
       const milestoneWrapped = doc.splitTextToSize(step.milestone, pageWidth - 55);
-      const height = milestoneWrapped.length * 4.3;
-      checkSpace(height + 6);
+      const height = (milestoneWrapped.length * 4.3) + 7;
+      checkSpace(height);
       
       doc.setDrawColor(99, 102, 241);
       doc.setLineWidth(1.2);
-      doc.circle(20, y - 0.5, 1.8, 'D');
+      doc.circle(20, y + 3.5, 1.8, 'D');
       
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(79, 70, 229);
-      doc.text(step.year.toUpperCase(), 28, y);
+      doc.text(step.year.toUpperCase(), 28, y + 4);
       
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(30, 41, 59);
-      doc.text(milestoneWrapped, 28, y + 4.5);
+      for (let li = 0; li < milestoneWrapped.length; li++) {
+        doc.text(milestoneWrapped[li], 28, y + 8.5 + (li * 4.3));
+      }
       
-      y += height + 7;
+      y += height;
     });
 
     y += 3;
@@ -385,11 +399,13 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     doc.setTextColor(30, 41, 59);
     
     degree.universities.forEach((uni) => {
-      const wrappedUni = doc.splitTextToSize(`•  ${uni}`, pageWidth - 32);
-      const height = wrappedUni.length * 4.3;
-      checkSpace(height + 2);
-      doc.text(wrappedUni, 16, y);
-      y += height + 2;
+      const wrappedUni = doc.splitTextToSize(`•  ${uni}`, pageWidth - 34);
+      const height = (wrappedUni.length * 4.3) + 2;
+      checkSpace(height);
+      for (let li = 0; li < wrappedUni.length; li++) {
+        doc.text(wrappedUni[li], 16, y + 3.2 + (li * 4.3));
+      }
+      y += height;
     });
 
     y += 3;
@@ -397,68 +413,80 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
     // --- 9. RECOMMENDED STRATEGY & ENTREPRENEURIAL OPPORTUNITIES ---
     addSectionHeader('Strategic Advice & Opportunities');
     
-    checkSpace(30);
-    const sideColWidth = (pageWidth - 30) / 2;
+    checkSpace(35);
+    const sideColWidth = (pageWidth - 32) / 2;
     let strategyLeftY = y;
     let strategyRightY = y;
     
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(22, 101, 52); // Green 800
-    doc.text('SUITABLE FOR YOU IF:', 16, y);
+    doc.text('SUITABLE FOR YOU IF:', 16, y + 4);
     
     doc.setTextColor(153, 27, 27); // Red 800
-    doc.text('AVOID THIS IF:', 16 + sideColWidth, y);
+    doc.text('AVOID THIS IF:', 16 + sideColWidth, y + 4);
     
-    strategyLeftY += 6;
-    strategyRightY += 6;
+    strategyLeftY += 8;
+    strategyRightY += 8;
     
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(30, 41, 59);
     
     degree.chooseIf.forEach((item) => {
-      const wrappedItem = doc.splitTextToSize(`+ ${item}`, sideColWidth - 4);
-      doc.text(wrappedItem, 16, strategyLeftY);
+      const wrappedItem = doc.splitTextToSize(`+ ${item}`, sideColWidth - 6);
+      for (let li = 0; li < wrappedItem.length; li++) {
+        doc.text(wrappedItem[li], 16, strategyLeftY + 3.2 + (li * 4.2));
+      }
       strategyLeftY += (wrappedItem.length * 4.2) + 2;
     });
     
     degree.avoidIf.forEach((item) => {
-      const wrappedItem = doc.splitTextToSize(`- ${item}`, sideColWidth - 4);
-      doc.text(wrappedItem, 16 + sideColWidth, strategyRightY);
+      const wrappedItem = doc.splitTextToSize(`- ${item}`, sideColWidth - 6);
+      for (let li = 0; li < wrappedItem.length; li++) {
+        doc.text(wrappedItem[li], 16 + sideColWidth, strategyRightY + 3.2 + (li * 4.2));
+      }
       strategyRightY += (wrappedItem.length * 4.2) + 2;
     });
     
     y = Math.max(strategyLeftY, strategyRightY) + 6;
     
     // Recommended Strategy
-    checkSpace(18);
+    const wrappedStrategy = doc.splitTextToSize(degree.strategy.join('  ➔  '), pageWidth - 34);
+    const strategyBlockHeight = (wrappedStrategy.length * 4.3) + 8;
+    checkSpace(strategyBlockHeight);
+    
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
-    doc.text('CORE STRATEGY:', 16, y);
-    y += 4.5;
+    doc.text('CORE STRATEGY:', 16, y + 4);
+    y += 6;
     
     doc.setFont('Helvetica', 'italic');
     doc.setFontSize(8.5);
     doc.setTextColor(79, 70, 229);
-    const wrappedStrategy = doc.splitTextToSize(degree.strategy.join('  ➔  '), pageWidth - 32);
-    doc.text(wrappedStrategy, 16, y);
+    for (let li = 0; li < wrappedStrategy.length; li++) {
+      doc.text(wrappedStrategy[li], 16, y + 3.2 + (li * 4.3));
+    }
     y += (wrappedStrategy.length * 4.3) + 6;
 
     // Entrepreneurial opportunities
-    checkSpace(16);
+    const wrappedOps = doc.splitTextToSize(degree.startupOps.join(' • '), pageWidth - 34);
+    const opsBlockHeight = (wrappedOps.length * 4.3) + 8;
+    checkSpace(opsBlockHeight);
+
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
-    doc.text('ENTREPRENEURIAL & FREELANCING PATHS:', 16, y);
-    y += 4.5;
+    doc.text('ENTREPRENEURIAL & FREELANCING PATHS:', 16, y + 4);
+    y += 6;
     
     doc.setFont('Helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(30, 41, 59);
-    const wrappedOps = doc.splitTextToSize(degree.startupOps.join(' • '), pageWidth - 32);
-    doc.text(wrappedOps, 16, y);
+    for (let li = 0; li < wrappedOps.length; li++) {
+      doc.text(wrappedOps[li], 16, y + 3.2 + (li * 4.3));
+    }
     
     // Save the PDF
     doc.save(`${degree.title.toLowerCase().replace(/\s+/g, '_')}_roadmap_2026.pdf`);
