@@ -128,6 +128,23 @@ export default function AdminDashboard({ user, onSwitchToStudentView }: AdminDas
     return String(val);
   };
 
+  // Helper to open payment receipt image with permanent access token
+  const handleOpenReceipt = (receiptData: string) => {
+    if (!receiptData) return;
+    if (receiptData.startsWith('data:')) {
+      const win = window.open();
+      if (win) {
+        win.document.write(`<iframe src="${receiptData}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+      }
+    } else {
+      let url = receiptData;
+      if (url.includes('firebasestorage.googleapis.com') && !url.includes('token=')) {
+        url += (url.includes('?') ? '&' : '?') + 'alt=media&token=dreampath-permanent-token';
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   // Fetch all users from Firestore with merge from localStorage
   const loadUsersFromFirestore = async () => {
     setIsLoadingUsers(true);
@@ -935,6 +952,20 @@ export default function AdminDashboard({ user, onSwitchToStudentView }: AdminDas
                       <p className="text-slate-300 line-clamp-2 mt-0.5">{apt.purpose}</p>
                     </div>
 
+                    {/* View / Download Receipt Button */}
+                    {apt.receiptData && (
+                      <div className="mb-3">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReceipt(apt.receiptData)}
+                          className="w-full py-2.5 px-3 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        >
+                          <FileText size={14} />
+                          <span>View / Download Payment Receipt (TRX: {apt.transactionId || 'N/A'})</span>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Google Meet Link Status */}
                     {apt.googleMeetLink ? (
                       <div className="flex items-center justify-between p-2.5 bg-indigo-950/60 border border-indigo-500/30 rounded-xl text-xs">
@@ -1121,28 +1152,25 @@ export default function AdminDashboard({ user, onSwitchToStudentView }: AdminDas
                       <span className="font-mono text-[10px] text-teal-300 font-bold">TRX: {inspectAppointment.transactionId}</span>
                     </div>
                     {inspectAppointment.receiptData ? (
-                      <div>
-                        {inspectAppointment.receiptData.startsWith('data:image') ? (
-                          <div className="relative group cursor-pointer" onClick={() => setViewImageModal(inspectAppointment.receiptData)}>
-                            <img 
-                              src={inspectAppointment.receiptData} 
-                              alt="Payment Receipt" 
-                              className="w-full h-28 object-cover rounded-xl border border-slate-600 hover:opacity-90 transition-opacity"
-                            />
-                            <span className="absolute bottom-2 right-2 px-2 py-0.5 bg-slate-950/80 text-white rounded text-[10px] font-bold flex items-center gap-1">
-                              <Eye size={11} /> View Slip
-                            </span>
-                          </div>
-                        ) : (
-                          <a
-                            href={inspectAppointment.receiptData}
-                            download={inspectAppointment.receiptFileName || 'payment_receipt.pdf'}
-                            className="p-3 bg-slate-900 border border-slate-700 rounded-xl text-teal-300 hover:underline flex items-center justify-center gap-1.5 font-bold text-xs"
-                          >
-                            <FileText size={15} />
-                            <span>Download Receipt File</span>
-                          </a>
-                        )}
+                      <div className="space-y-2">
+                        <div className="relative group cursor-pointer" onClick={() => setViewImageModal(inspectAppointment.receiptData)}>
+                          <img 
+                            src={inspectAppointment.receiptData} 
+                            alt="Payment Receipt" 
+                            className="w-full h-28 object-cover rounded-xl border border-slate-600 hover:opacity-90 transition-opacity"
+                          />
+                          <span className="absolute bottom-2 right-2 px-2 py-0.5 bg-slate-950/80 text-white rounded text-[10px] font-bold flex items-center gap-1">
+                            <Eye size={11} /> View Full Slip
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReceipt(inspectAppointment.receiptData)}
+                          className="w-full py-2 px-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <FileText size={14} />
+                          <span>Open / Download Receipt in New Tab</span>
+                        </button>
                       </div>
                     ) : (
                       <p className="text-[11px] text-slate-500 italic">No receipt image attached.</p>

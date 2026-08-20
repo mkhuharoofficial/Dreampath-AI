@@ -37,6 +37,8 @@ export default function App() {
   const [selectedDegree, setSelectedDegree] = useState<Degree | null>(null);
   const [chatPromptToTrigger, setChatPromptToTrigger] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalPrompt, setAuthModalPrompt] = useState<string>('');
+  const [authRedirectTarget, setAuthRedirectTarget] = useState<ScreenState | null>(null);
   const [adminPreviewStudentMode, setAdminPreviewStudentMode] = useState(false);
 
   const [user, setUser] = useState<{ uid?: string; name: string; email: string; phone?: string; city?: string } | null>(() => {
@@ -198,12 +200,24 @@ export default function App() {
   };
 
   const handleOpenAssessment = () => {
+    if (!user) {
+      setAuthModalPrompt("Please Sign In / Log In to continue.");
+      setAuthRedirectTarget('assessment');
+      setIsAuthModalOpen(true);
+      return;
+    }
     setScreen('assessment');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     window.history.pushState(null, '', '#assessment');
   };
 
   const handleNavigate = (targetScreen: ScreenState) => {
+    if (targetScreen === 'appointment' && !user) {
+      setAuthModalPrompt("Please Sign Up / Log In to proceed.");
+      setAuthRedirectTarget('appointment');
+      setIsAuthModalOpen(true);
+      return;
+    }
     setScreen(targetScreen);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     window.history.pushState(null, '', `#${targetScreen}`);
@@ -354,11 +368,20 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthModalPrompt('');
+          setAuthRedirectTarget(null);
+        }}
         onSuccessLogin={(authenticatedUser) => {
           setUser(authenticatedUser);
-          handleNavigate('dashboard');
+          const target = authRedirectTarget || 'dashboard';
+          setAuthModalPrompt('');
+          setAuthRedirectTarget(null);
+          setIsAuthModalOpen(false);
+          handleNavigate(target);
         }}
+        initialPrompt={authModalPrompt}
       />
     </>
   );

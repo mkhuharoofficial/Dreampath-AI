@@ -159,7 +159,7 @@ export default function Landing({
         </div>
       </section>
 
-      {/* Featured Blog Post Banner: How to Choose the Right Career in Pakistan */}
+      {/* Featured Blog Post Banner: 5 Simple Steps to Choose the Right Career */}
       <section className="max-w-7xl mx-auto px-6 md:px-12">
         <div 
           onClick={onOpenBlog}
@@ -172,49 +172,49 @@ export default function Landing({
             {/* Image Thumbnail */}
             <div className="w-full md:w-1/3 aspect-video md:aspect-square rounded-2xl overflow-hidden shrink-0 relative bg-slate-100 shadow-sm">
               <img 
-                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80" 
-                alt="How to Choose the Right Career in Pakistan"
+                src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80" 
+                alt="5 Simple Steps to Choose the Right Career"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               <span className="absolute top-3 left-3 bg-indigo-600/90 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg">
-                Featured Guide 🇵🇰
+                Featured Guide ⭐
               </span>
             </div>
 
             {/* Post Content */}
             <div className="w-full md:w-2/3 space-y-3">
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[11px] font-extrabold">Career Advisory</span>
+                <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[11px] font-extrabold">Career Guidance</span>
                 <span>•</span>
-                <span>5 min read</span>
+                <span>6 min read</span>
                 <span>•</span>
-                <span className="text-emerald-600 font-black">2 Comments Enabled</span>
+                <span className="text-emerald-600 font-black">Community Comments</span>
               </div>
 
               <h3 className="text-2xl md:text-3xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors font-display leading-tight">
-                How to Choose the Right Career in Pakistan: A Simple Guide
+                5 Simple Steps to Choose the Right Career
               </h3>
 
               <p className="text-xs md:text-sm text-slate-600 font-medium leading-relaxed">
-                Choosing a career after intermediate or school is a huge decision. In Pakistan, students often get confused by comparing unrelated fields like Pharmacy vs AI. Here is a simple, 5-step guide to help you find your right path.
+                A simple guide for students after Matric, Intermediate, FSc, O-Level or A-Level. Know your interests, check your budget, think about lifestyle, understand study time, and research future opportunities.
               </p>
 
               {/* Step Badges */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <span className="text-[10px] font-extrabold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
-                  Step 1: Pick Domain First
+                  Step 1: Interests
                 </span>
                 <span className="text-[10px] font-extrabold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
-                  Step 2: Extrovert vs Introvert
+                  Step 2: Budget & Cost
                 </span>
                 <span className="text-[10px] font-extrabold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">
-                  Step 3: Time & Money (Fast vs Long Path)
+                  Step 3: Lifestyle & Study Time
                 </span>
               </div>
 
               <div className="pt-2 flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-wider group-hover:translate-x-1 transition-transform">
                 <BookOpen size={16} />
-                <span>Read Complete Guide & Community Comments</span>
+                <span>Read Complete Guide & Visual Roadmap</span>
                 <ArrowRight size={16} />
               </div>
             </div>

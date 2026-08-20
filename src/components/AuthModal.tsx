@@ -25,9 +25,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccessLogin: (user: { uid?: string; name: string; email: string; phone?: string; city?: string }) => void;
+  initialPrompt?: string;
 }
 
-export default function AuthModal({ isOpen, onClose, onSuccessLogin }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onSuccessLogin, initialPrompt }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'signup' | 'verify' | 'forgot'>('login');
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -338,9 +339,15 @@ export default function AuthModal({ isOpen, onClose, onSuccessLogin }: AuthModal
                 <h3 className="text-xl font-black text-slate-900 tracking-tight font-display">
                   Dreampath <span className="text-indigo-600">AI</span> Account
                 </h3>
-                <p className="text-xs text-slate-500 font-medium mt-1">
-                  Access your personalized career reports, roadmaps, and appointments.
-                </p>
+                {initialPrompt ? (
+                  <div className="mt-2.5 p-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 animate-pulse">
+                    <span>{initialPrompt}</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Access your personalized career reports, roadmaps, and appointments.
+                  </p>
+                )}
 
                 {/* Mode Switch Tabs */}
                 <div className="flex bg-slate-200/80 p-1 rounded-2xl mt-4 max-w-xs mx-auto">
@@ -520,7 +527,10 @@ export default function AuthModal({ isOpen, onClose, onSuccessLogin }: AuthModal
                   className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isLoading ? (
-                    <span>Processing...</span>
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Processing...</span>
+                    </>
                   ) : (
                     <>
                       <span>{mode === 'login' ? 'Sign In' : 'Create Account & Verify'}</span>

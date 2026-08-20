@@ -640,7 +640,10 @@ export default function AuthPage({ onSuccessLogin, onNavigateToHome }: AuthPageP
                     className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-6"
                   >
                     {isLoading ? (
-                      <span>Authenticating...</span>
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Authenticating...</span>
+                      </>
                     ) : (
                       <>
                         <span>{mode === 'login' ? 'Sign In to Account' : 'Create Account & Verify'}</span>

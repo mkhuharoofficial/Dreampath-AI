@@ -27,6 +27,44 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    id: '5-simple-steps-to-choose-the-right-career',
+    title: '5 Simple Steps to Choose the Right Career',
+    category: 'Career Guidance',
+    readTime: '6 min read',
+    date: 'August 2026',
+    author: 'Dreampath Career Advisory',
+    excerpt: 'A simple guide for students after Matric, Intermediate, FSc, O-Level or A-Level to choose the right career step-by-step.',
+    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+    keyTakeaways: [
+      'Know your interests and explore fields like Medical, Technology, Business, Law, and Sciences',
+      'Check your budget, family support, and when you can realistically start earning',
+      'Think about the daily lifestyle, work environment, and routine you want',
+      'Understand study time: Technology & Business take ~4 years, MBBS is a long pathway',
+      'Research future opportunities, universities, market demand, and remote work'
+    ],
+    comments: [
+      {
+        id: 'c3',
+        author: 'Bilal Ahmed',
+        role: 'Intermediate Student',
+        text: 'Step 4 about study time and roadmap is super helpful. It really puts things into perspective!',
+        date: 'August 19, 2026 at 4:20 PM'
+      }
+    ],
+    content: [
+      'A simple guide for students after Matric, Intermediate, FSc, O-Level or A-Level',
+      'STEP 1: Know Your Interests\nBefore choosing a degree, ask yourself:\n• What subjects do I enjoy?\n• What type of work do I enjoy?\n• Do I like helping people?\n• Do I like technology and computers?\n• Do I like business and entrepreneurship?\n• Do I like science and research?\n• Do I like law, society, or communication?\n\nExplore areas such as:\n• Medical & Health (Interested in biology, healthcare and helping patients)\n• Technology & Engineering (Enjoy computers, mathematics, problem-solving and building things)\n• Business & Finance (Interested in business, money, marketing and entrepreneurship)\n• Law & Public Policy (Enjoy communication, critical thinking, justice and public service)\n• Natural Sciences (Interested in science, experiments and research)\n• Social Sciences & Humanities (Interested in people, society, psychology, history and communication)',
+      'STEP 2: Check Your Budget\nBefore choosing a degree, find out:\n• How much will it cost?\n• Can my family afford it?\n• How many years will I study?\n• When can I realistically start earning?\n• Are scholarships available?\n• Can I work, freelance, or do internships while studying?',
+      'STEP 3: Think About the Life You Want\nThink about your future daily life. Do you prefer hospitals and patient care, computer and desk work, business and offices, laboratories and research, courtrooms and law, or working with people and communities?\nAlso ask:\n• Do I want a fixed schedule or a flexible career?\n• Am I comfortable with long study and training?\n• Do I want to work in Pakistan or possibly abroad?',
+      'STEP 4: Check the Study Time\nBefore choosing a degree, find out how long you will study, when you can graduate, when you can realistically start working, and whether you will need further study or training.\n\nUse this simple roadmap:\n• Technology: Usually around 4 years for a bachelor\'s degree.\n• Allied Health: Often around 4 years, depending on the program.\n• Business: Usually around 4 years for a bachelor\'s degree.\n• MBBS: A long study and training pathway.\n• CA / ACCA: Depends on the qualification, exams, and completion.',
+      'STEP 5: Check Future Opportunities\nBefore choosing a degree, research:\n• Which universities offer it?\n• What skills will I need?\n• What jobs can I get after graduation?\n• Is there demand for this career?\n• Can I work remotely?\n• Are there opportunities in Pakistan or abroad?\n• Can I get scholarships?',
+      'YOUR CAREER CHECK\nBefore making your final choice, ask yourself:\n✓ Does this career match my interests?\n✓ Does it match my strengths and abilities?\n✓ Can I manage the cost and study time?\n✓ Do I like the kind of work this career involves?\n✓ Have I checked universities, skills, and career opportunities?',
+      'DON\'T CHOOSE ONLY BECAUSE SOMEONE TOLD YOU TO\nParents, teachers, and friends can give useful advice. But your career should also match your interests, abilities, goals, and situation.\n• Don\'t choose a degree only because it is popular.\n• Don\'t choose a degree only because your friends are choosing it.\n• Don\'t choose a career only because someone else wants you to.\nUnderstand yourself and the career before making your decision.',
+      'NEED HELP CHOOSING?\nDreamPath AI helps students explore their options through a Free Self-Assessment Test.\nThe platform can help students explore:\n✓ Career suggestions based on their answers\n✓ Degree roadmaps\n✓ Required practical skills\n✓ University information\n✓ Career opportunities',
+      'Don\'t guess your future. Explore it.\n\nDreamPath AI\ndreampathai.pk'
+    ]
+  },
+  {
     id: 'how-to-choose-right-career-in-pakistan',
     title: 'How to Choose the Right Career in Pakistan: A Simple Guide',
     category: 'Career Guidance',
@@ -491,6 +529,36 @@ export default function Blog({ onOpenAssessment, onBookAppointment }: BlogProps)
                     ))}
                   </ul>
                 </div>
+
+                {/* Visual Roadmap for 5 Simple Steps */}
+                {activePost.id === '5-simple-steps-to-choose-the-right-career' && (
+                  <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl border border-indigo-500/30">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-teal-400 mb-4 text-center font-display">
+                      🧭 Clean Visual Career Decision Roadmap
+                    </h4>
+                    <div className="flex flex-col items-center max-w-xs mx-auto space-y-2">
+                      {[
+                        { title: 'Interests', desc: 'Know what you enjoy' },
+                        { title: 'Budget', desc: 'Check family support & costs' },
+                        { title: 'Lifestyle', desc: 'Think about daily life' },
+                        { title: 'Study Time', desc: 'Check degree duration' },
+                        { title: 'Future Opportunities', desc: 'Research market demand' },
+                        { title: 'Make Your Decision', desc: 'Choose with confidence' }
+                      ].map((step, idx, arr) => (
+                        <React.Fragment key={step.title}>
+                          <div className="w-full bg-slate-800/90 border border-slate-700/80 px-4 py-3 rounded-2xl text-center shadow-sm">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-teal-300 block mb-0.5">Step {idx + 1}</span>
+                            <h5 className="font-bold text-sm text-white">{step.title}</h5>
+                            <p className="text-[11px] text-slate-400 font-medium">{step.desc}</p>
+                          </div>
+                          {idx < arr.length - 1 && (
+                            <div className="text-teal-400 font-bold text-sm my-0.5">↓</div>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Article Body Content */}
                 <div className="space-y-4">
