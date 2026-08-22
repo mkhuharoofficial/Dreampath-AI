@@ -43,14 +43,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Assessment Results & Saved Roadmaps:
-    // - Users can only read, create, and manage their own assessments and blueprints
-    // - Admins have full analytical view
+    // Assessment Results & Saved Roadmaps (/assessments and /self_assessment):
+    // - Authenticated users can only read, create, update, or delete assessment documents where userId matches their own authenticated UID.
+    // - Admins retain analytical and operational view.
     match /assessments/{assessmentId} {
-      allow read: if isAdmin() || (request.auth != null && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
-      allow create: if request.auth != null && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
-      allow update: if isAdmin() || (request.auth != null && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid));
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+    }
+
+    match /self_assessment/{assessmentId} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
     }
 
     // Deny all other unmatched paths by default

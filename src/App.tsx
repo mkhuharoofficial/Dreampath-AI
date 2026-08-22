@@ -305,6 +305,7 @@ export default function App() {
 
         {screen === 'assessment' && (
           <Assessment 
+            user={user}
             onBackToMain={handleBackToDashboard} 
             onSelectDegree={handleSelectDegree}
             onOpenChatWithPrompt={handleOpenChatWithPrompt}

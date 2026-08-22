@@ -38,6 +38,25 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "fullName", "email"]
+    },
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Self-assessment test results and career evaluation data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "city": { "type": "string" },
+        "province": { "type": "string" },
+        "educationLevel": { "type": "string" },
+        "academicPercentage": { "type": "string" },
+        "answers": { "type": "object" },
+        "topRecommendations": { "type": "array" },
+        "reportBase64": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "studentName"]
     }
   },
   "firestore": {
@@ -48,6 +67,14 @@
     "/appointments/{appointmentId}": {
       "schema": "Appointment",
       "description": "Counseling session bookings and payment records"
+    },
+    "/self_assessment/{assessmentId}": {
+      "schema": "Assessment",
+      "description": "Self-assessment test records per authenticated user"
+    },
+    "/assessments/{assessmentId}": {
+      "schema": "Assessment",
+      "description": "Career assessment test records per authenticated user"
     }
   }
 }

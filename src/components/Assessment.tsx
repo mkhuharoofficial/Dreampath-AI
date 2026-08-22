@@ -444,69 +444,111 @@ const ACADEMIC_PERCENTAGES = [
 ];
 
 interface AssessmentProps {
+  user?: { uid?: string; name: string; email: string; phone?: string; city?: string } | null;
   onBackToMain?: () => void;
   onSelectDegree?: (degree: Degree) => void;
   onOpenChatWithPrompt?: (promptText: string) => void;
 }
 
-export default function Assessment({ onBackToMain, onSelectDegree, onOpenChatWithPrompt }: AssessmentProps) {
-  // Step 0: Student Information, Steps 1..12: Questions, Step 13: Results
-  const [currentStep, setCurrentStep] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('dreampath_assessment_step');
-      return saved ? parseInt(saved, 10) : 0;
-    } catch (e) {
-      return 0;
-    }
+const getUserStorageKey = (u: { uid?: string; email?: string } | null | undefined, prefix: string) => {
+  if (!u) return `dreampath_guest_${prefix}`;
+  const id = u.uid || (u.email ? u.email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'user');
+  return `dreampath_user_${id}_${prefix}`;
+};
+
+export default function Assessment({ user, onBackToMain, onSelectDegree, onOpenChatWithPrompt }: AssessmentProps) {
+  const getUserDefaultInfo = (u: typeof user): StudentInfo => ({
+    fullName: u?.name || '',
+    email: u?.email || '',
+    city: u?.city || '',
+    province: 'Sindh',
+    educationLevel: 'ICS / Computer Science',
+    academicPercentage: '70% to 79%'
   });
 
-  const [studentInfo, setStudentInfo] = useState<StudentInfo>(() => {
+  const loadUserData = (u: typeof user) => {
     try {
-      const saved = localStorage.getItem('dreampath_student_info');
-      return saved ? JSON.parse(saved) : {
-        fullName: '',
-        email: '',
-        city: '',
-        province: 'Sindh',
-        educationLevel: 'ICS / Computer Science',
-        academicPercentage: '70% to 79%'
-      };
-    } catch (e) {
+      const stepKey = getUserStorageKey(u, 'step');
+      const infoKey = getUserStorageKey(u, 'info');
+      const ansKey = getUserStorageKey(u, 'answers');
+
+      const savedStep = localStorage.getItem(stepKey);
+      const parsedStep = savedStep ? parseInt(savedStep, 10) : 0;
+
+      const savedInfo = localStorage.getItem(infoKey);
+      const defaultInfo = getUserDefaultInfo(u);
+      const parsedInfo: StudentInfo = savedInfo ? { ...defaultInfo, ...JSON.parse(savedInfo) } : defaultInfo;
+      
+      // Keep student name, email, city populated from active user if empty
+      if (u?.name && !parsedInfo.fullName) parsedInfo.fullName = u.name;
+      if (u?.email && !parsedInfo.email) parsedInfo.email = u.email;
+      if (u?.city && !parsedInfo.city) parsedInfo.city = u.city;
+
+      const savedAns = localStorage.getItem(ansKey);
+      const parsedAns = savedAns ? JSON.parse(savedAns) : {};
+
       return {
-        fullName: '',
-        email: '',
-        city: '',
-        province: 'Sindh',
-        educationLevel: 'ICS / Computer Science',
-        academicPercentage: '70% to 79%'
+        step: isNaN(parsedStep) ? 0 : parsedStep,
+        info: parsedInfo,
+        answers: parsedAns
+      };
+    } catch {
+      return {
+        step: 0,
+        info: getUserDefaultInfo(u),
+        answers: {}
       };
     }
-  });
+  };
 
-  const [answers, setAnswers] = useState<Record<number, string>>(() => {
-    try {
-      const saved = localStorage.getItem('dreampath_assessment_answers');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      return {};
-    }
-  });
+  const initialData = loadUserData(user);
+  const [currentStep, setCurrentStep] = useState<number>(initialData.step);
+  const [studentInfo, setStudentInfo] = useState<StudentInfo>(initialData.info);
+  const [answers, setAnswers] = useState<Record<number, string>>(initialData.answers);
 
   const [validationError, setValidationError] = useState<string>('');
   const [showRestartModal, setShowRestartModal] = useState<boolean>(false);
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
 
-  // Sync state to LocalStorage
+  // Clean legacy global unsynced keys on mount so old shared assessment data never leaks
   useEffect(() => {
     try {
-      localStorage.setItem('dreampath_assessment_step', currentStep.toString());
-      localStorage.setItem('dreampath_student_info', JSON.stringify(studentInfo));
-      localStorage.setItem('dreampath_assessment_answers', JSON.stringify(answers));
+      localStorage.removeItem('dreampath_assessment_step');
+      localStorage.removeItem('dreampath_student_info');
+      localStorage.removeItem('dreampath_assessment_answers');
+    } catch {}
+  }, []);
+
+  // Sync state whenever the active user changes (switching account or login/logout)
+  const prevUserKeyRef = React.useRef<string>(getUserStorageKey(user, 'key'));
+  useEffect(() => {
+    const newUserKey = getUserStorageKey(user, 'key');
+    if (prevUserKeyRef.current !== newUserKey) {
+      prevUserKeyRef.current = newUserKey;
+      const data = loadUserData(user);
+      setCurrentStep(data.step);
+      setStudentInfo(data.info);
+      setAnswers(data.answers);
+      setValidationError('');
+      setShowRestartModal(false);
+    }
+  }, [user]);
+
+  // Sync state to User-Scoped LocalStorage
+  useEffect(() => {
+    try {
+      const stepKey = getUserStorageKey(user, 'step');
+      const infoKey = getUserStorageKey(user, 'info');
+      const ansKey = getUserStorageKey(user, 'answers');
+
+      localStorage.setItem(stepKey, currentStep.toString());
+      localStorage.setItem(infoKey, JSON.stringify(studentInfo));
+      localStorage.setItem(ansKey, JSON.stringify(answers));
     } catch (e) {
       console.error('Failed to store assessment progress', e);
     }
-  }, [currentStep, studentInfo, answers]);
+  }, [user, currentStep, studentInfo, answers]);
 
   const handleStudentInfoChange = (field: keyof StudentInfo, value: string) => {
     setStudentInfo(prev => ({ ...prev, [field]: value }));
@@ -555,20 +597,22 @@ export default function Assessment({ onBackToMain, onSelectDegree, onOpenChatWit
     }
   };
 
-  const handleConfirmRestart = () => {
+  // Start a fresh new assessment test for the current user
+  const handleStartNewAssessment = () => {
+    const stepKey = getUserStorageKey(user, 'step');
+    const infoKey = getUserStorageKey(user, 'info');
+    const ansKey = getUserStorageKey(user, 'answers');
+
+    try {
+      localStorage.removeItem(stepKey);
+      localStorage.removeItem(infoKey);
+      localStorage.removeItem(ansKey);
+    } catch {}
+
     setAnswers({});
     setCurrentStep(0);
-    setStudentInfo({
-      fullName: '',
-      email: '',
-      city: '',
-      province: 'Sindh',
-      educationLevel: 'ICS / Computer Science',
-      academicPercentage: '70% to 79%'
-    });
-    localStorage.removeItem('dreampath_assessment_step');
-    localStorage.removeItem('dreampath_student_info');
-    localStorage.removeItem('dreampath_assessment_answers');
+    setStudentInfo(getUserDefaultInfo(user));
+    setValidationError('');
     setShowRestartModal(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -849,8 +893,8 @@ Based on my background, goals, and answers, please provide:
       const pdfBase64Data = doc.output('datauristring');
 
       try {
-        const currentUserId = auth.currentUser?.uid || '';
-        const userEmail = auth.currentUser?.email || studentInfo.email || '';
+        const currentUserId = auth.currentUser?.uid || user?.uid || '';
+        const userEmail = auth.currentUser?.email || user?.email || studentInfo.email || '';
         const assessmentRecord = {
           studentName: studentInfo.fullName,
           studentEmail: userEmail,
@@ -892,7 +936,44 @@ Based on my background, goals, and answers, please provide:
   const progressPercent = currentStep === 0 ? 0 : Math.round((currentStep / 12) * 100);
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-8 md:py-12 relative">
+    <div className="w-full max-w-4xl mx-auto px-4 py-6 md:py-10 relative">
+      {/* Top Utility / Action Bar */}
+      <div className="flex items-center justify-between gap-3 mb-6 bg-white/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-2">
+          {onBackToMain && (
+            <button
+              onClick={onBackToMain}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
+          )}
+          {user && (
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200/60 rounded-xl text-slate-700 text-xs font-semibold">
+              <User size={13} className="text-indigo-600" />
+              <span>Assessment for: <strong className="text-slate-900 font-extrabold">{user.name || user.email}</strong></span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (currentStep > 0) {
+                setShowRestartModal(true);
+              } else {
+                handleStartNewAssessment();
+              }
+            }}
+            className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200/90 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            title="Start a new assessment test"
+          >
+            <RotateCcw size={14} className="text-indigo-600" />
+            <span>New Assessment Test</span>
+          </button>
+        </div>
+      </div>
+
       {/* Header Banner */}
       <motion.div
         initial={{ opacity: 0, y: -15 }}
@@ -1298,8 +1379,8 @@ Based on my background, goals, and answers, please provide:
             </div>
           </div>
 
-          {/* Two Main Action Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Main Action Buttons Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* 1. Download Official Report */}
             <button
               onClick={handleDownloadPDF}
@@ -1307,7 +1388,7 @@ Based on my background, goals, and answers, please provide:
               className="p-5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-2xl shadow-lg shadow-indigo-600/15 font-black text-sm flex items-center justify-center gap-3 transition-all border border-indigo-400/20 disabled:opacity-50"
             >
               <Download size={18} />
-              <span>{isGeneratingPDF ? 'Generating PDF...' : '1. Download Official Report'}</span>
+              <span>{isGeneratingPDF ? 'Generating PDF...' : '1. Download Report'}</span>
             </button>
 
             {/* 2. Copy AI Prompt */}
@@ -1316,7 +1397,16 @@ Based on my background, goals, and answers, please provide:
               className="p-5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-lg font-black text-sm flex items-center justify-center gap-3 transition-all border border-slate-700"
             >
               {copiedPrompt ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
-              <span>{copiedPrompt ? 'Copied Prompt!' : '2. Copy AI Career Prompt'}</span>
+              <span>{copiedPrompt ? 'Copied Prompt!' : '2. Copy AI Prompt'}</span>
+            </button>
+
+            {/* 3. Start New Assessment Test */}
+            <button
+              onClick={() => setShowRestartModal(true)}
+              className="p-5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-2xl shadow-lg shadow-teal-600/15 font-black text-sm flex items-center justify-center gap-3 transition-all border border-teal-400/20"
+            >
+              <RotateCcw size={18} />
+              <span>3. New Assessment Test</span>
             </button>
           </div>
 
@@ -1342,6 +1432,46 @@ Based on my background, goals, and answers, please provide:
           )}
         </motion.div>
       )}
+
+      {/* Start New Assessment Test Confirmation Modal */}
+      <AnimatePresence>
+        {showRestartModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center relative overflow-hidden"
+            >
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 border border-indigo-100 shadow-xs">
+                <RotateCcw size={26} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 font-display mb-2">
+                Start New Assessment Test?
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mb-6 leading-relaxed">
+                Starting a new assessment will clear your current answers and let you start a fresh 12-question career evaluation for your profile.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRestartModal(false)}
+                  className="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartNewAssessment}
+                  className="w-1/2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw size={14} /> Yes, Start New
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
