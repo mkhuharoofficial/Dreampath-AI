@@ -4,7 +4,7 @@ import {
   ArrowLeft, Download, Share2, Info, BookOpen, TrendingUp, 
   MapPin, DollarSign, HelpCircle, AlertCircle, Target, 
   Calendar, CheckCircle2, Factory, Briefcase, Check, Bookmark, MessageCircle,
-  Printer
+  Printer, Building2, Search, Award, ExternalLink, Compass
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { LOGO_BASE64 } from '../assets/logoBase64';
@@ -19,8 +19,74 @@ interface DegreeBlueprintProps {
   onToggleFavorite: () => void;
 }
 
+interface ParsedUniversity {
+  name: string;
+  city: string;
+  province: string;
+  type: 'Public' | 'Private';
+  testRequired: string;
+}
+
+const parseUniversityDetails = (uniName: string): ParsedUniversity => {
+  const lower = uniName.toLowerCase();
+  let city = 'Islamabad';
+  let province = 'Federal / Punjab';
+  let type: 'Public' | 'Private' = 'Public';
+  let testRequired = 'Entry Test / NTS';
+
+  if (lower.includes('lahore') || lower.includes('lums') || lower.includes('uet') || lower.includes('fast-nu') || lower.includes('comsats') && lower.includes('lahore') || lower.includes('gcu') || lower.includes('pucit') || lower.includes('lse') || lower.includes('fc college')) {
+    city = 'Lahore';
+    province = 'Punjab';
+  } else if (lower.includes('karachi') || lower.includes('iba') || lower.includes('nust') && lower.includes('karachi') || lower.includes('ned') || lower.includes('aku') || lower.includes('szabist') || lower.includes('dawood')) {
+    city = 'Karachi';
+    province = 'Sindh';
+  } else if (lower.includes('islamabad') || lower.includes('nust') || lower.includes('pieas') || lower.includes('quia') || lower.includes('iiu') || lower.includes('comsats') && !lower.includes('lahore')) {
+    city = 'Islamabad';
+    province = 'Federal (ICT)';
+  } else if (lower.includes('peshawar') || lower.includes('uett') || lower.includes('imt') || lower.includes('giki') || lower.includes('swabi') || lower.includes('iqra') && lower.includes('peshawar')) {
+    city = lower.includes('giki') ? 'Topi (Swabi)' : 'Peshawar';
+    province = 'Khyber Pakhtunkhwa';
+  } else if (lower.includes('faisalabad') || lower.includes('uaf') || lower.includes('ntu')) {
+    city = 'Faisalabad';
+    province = 'Punjab';
+  } else if (lower.includes('jamshoro') || lower.includes('muet') || lower.includes('sindh') || lower.includes('liaquat')) {
+    city = 'Jamshoro / Hyderabad';
+    province = 'Sindh';
+  } else if (lower.includes('quetta') || lower.includes('bzu') || lower.includes('balochistan')) {
+    city = 'Quetta / Multan';
+    province = 'Balochistan / Punjab';
+  }
+
+  if (lower.includes('lums') || lower.includes('aga khan') || lower.includes('giki') || lower.includes('fast') || lower.includes('iba') || lower.includes('lse') || lower.includes('iqra') || lower.includes('szabist') || lower.includes('superior') || lower.includes('university of lahore')) {
+    type = 'Private';
+  } else {
+    type = 'Public';
+  }
+
+  if (lower.includes('medical') || lower.includes('mbbs') || lower.includes('health') || lower.includes('dental')) {
+    testRequired = 'MDCAT Mandatory';
+  } else if (lower.includes('engineering') || lower.includes('uet') || lower.includes('nust') || lower.includes('pieas') || lower.includes('giki') || lower.includes('ned')) {
+    testRequired = 'ECAT / NET / GAT';
+  } else if (lower.includes('business') || lower.includes('iba') || lower.includes('lums') || lower.includes('lse')) {
+    testRequired = 'SAT / IBA Test / Nu-Test';
+  } else {
+    testRequired = 'HEC / University Entry Test';
+  }
+
+  return { name: uniName, city, province, type, testRequired };
+};
+
 export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFavorite }: DegreeBlueprintProps) {
   const [copied, setCopied] = useState(false);
+  const [selectedUniRegion, setSelectedUniRegion] = useState<string>('All');
+  const [searchUni, setSearchUni] = useState<string>('');
+
+  const parsedUniversities = degree.universities.map(parseUniversityDetails);
+  const filteredUniversities = parsedUniversities.filter(u => {
+    const matchesRegion = selectedUniRegion === 'All' || u.city.toLowerCase().includes(selectedUniRegion.toLowerCase()) || u.province.toLowerCase().includes(selectedUniRegion.toLowerCase());
+    const matchesSearch = searchUni === '' || u.name.toLowerCase().includes(searchUni.toLowerCase()) || u.city.toLowerCase().includes(searchUni.toLowerCase());
+    return matchesRegion && matchesSearch;
+  });
 
   const handleShare = () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#degree=${degree.id}`;
@@ -707,6 +773,93 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          {/* Section: Pakistani Universities Interactive Map & Campus Locator */}
+          <section id="pakistan-universities-map">
+            <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white rounded-[2.5rem] p-6 md:p-8 shadow-xl relative overflow-hidden border border-indigo-500/20">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[120px] pointer-events-none" />
+              
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10 relative z-10">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-400/30">
+                    Pakistan Campus Locator
+                  </span>
+                  <h2 className="text-xl md:text-2xl font-black text-white font-display mt-2 flex items-center gap-2.5">
+                    <Building2 className="text-teal-400" size={22} /> Top-Rated Universities in Pakistan
+                  </h2>
+                </div>
+                <div className="relative w-full md:w-64">
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search university or city..."
+                    value={searchUni}
+                    onChange={(e) => setSearchUni(e.target.value)}
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-400 focus:outline-hidden focus:border-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Region Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2 mb-6 relative z-10">
+                {['All', 'Islamabad', 'Lahore', 'Karachi', 'Faisalabad', 'Peshawar'].map((region) => (
+                  <button
+                    key={region}
+                    onClick={() => setSelectedUniRegion(region)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
+                      selectedUniRegion === region
+                        ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/30'
+                        : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {region === 'All' ? '🇵🇰 All Pakistan Hubs' : region}
+                  </button>
+                ))}
+              </div>
+
+              {/* Interactive University List Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 relative z-10 max-h-[480px] overflow-y-auto pr-1">
+                {filteredUniversities.length > 0 ? (
+                  filteredUniversities.map((uni, idx) => (
+                    <div 
+                      key={idx}
+                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-4 rounded-2xl transition-all shadow-sm flex flex-col justify-between gap-3 group"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <h4 className="font-extrabold text-sm text-white group-hover:text-indigo-300 transition-colors">
+                            {uni.name}
+                          </h4>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                            uni.type === 'Public' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          }`}>
+                            {uni.type}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                          <MapPin size={12} className="text-teal-400 shrink-0" />
+                          <span>{uni.city}, {uni.province}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2.5 border-t border-slate-800/80 text-[11px]">
+                        <span className="text-indigo-300 font-bold flex items-center gap-1">
+                          <Award size={12} className="text-amber-400" /> {uni.testRequired}
+                        </span>
+                        <span className="text-slate-400 font-semibold text-[10px] bg-slate-800/80 px-2.5 py-1 rounded-lg">
+                          HEC W4 Recognized
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 py-10 text-center text-slate-400 text-xs font-semibold">
+                    No universities found matching &quot;{searchUni}&quot; in {selectedUniRegion}. Try selecting &quot;All Pakistan Hubs&quot;.
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 

@@ -259,53 +259,7 @@ export default function BookAppointment({
         createdDateString: sessionDateFormatted
       };
 
-      // 1. Primary write to counseling_sessions collection in Firestore
-      try {
-        await addDoc(collection(db, 'counseling_sessions'), sessionRecordPayload);
-        console.log('Saved directly to Firestore counseling_sessions collection');
-      } catch (firestoreErr: any) {
-        console.warn('counseling_sessions write error (continuing):', firestoreErr);
-      }
-
-      // 2. Write to book_appointment collection in Firestore
-      try {
-        await addDoc(collection(db, 'book_appointment'), sessionRecordPayload);
-        console.log('Saved directly to Firestore book_appointment collection');
-      } catch (bookErr) {
-        console.warn('book_appointment write error (continuing):', bookErr);
-      }
-
-      // 3. Compatibility write to appointments collection in Firestore
-      try {
-        await addDoc(collection(db, 'appointments'), {
-          ...sessionRecordPayload,
-          paymentProofDataUrl: finalReceiptData || undefined,
-          paymentProofFileName: paymentReceiptFile?.name || 'receipt.jpg'
-        });
-      } catch (aptErr) {
-        // Fallback handled smoothly
-      }
-
-      // 4. Update user profile document in users collection
-      if (resolvedUserId) {
-        try {
-          await setDoc(doc(db, 'users', resolvedUserId), {
-            lastCounselingSession: {
-              sessionId,
-              preferredDate,
-              preferredTime,
-              purpose,
-              status: 'pending_verification',
-              transactionId,
-              submittedAt: serverTimestamp()
-            }
-          }, { merge: true });
-        } catch (userDocErr) {
-          console.warn('users doc update error (continuing):', userDocErr);
-        }
-      }
-
-      // 3. Local persistence for offline and student dashboard zero-reload viewing
+      // Local persistence instantly first for zero-wait UI response
       const fullRecord: CounselingSessionRecord = {
         ...sessionRecordPayload,
         createdAt: sessionDateFormatted
@@ -322,6 +276,30 @@ export default function BookAppointment({
       } catch (storageErr) {
         console.error('LocalStorage save note:', storageErr);
       }
+
+      // Execute Firestore writes concurrently in the background without blocking the UI
+      Promise.allSettled([
+        addDoc(collection(db, 'counseling_sessions'), sessionRecordPayload),
+        addDoc(collection(db, 'book_appointment'), sessionRecordPayload),
+        addDoc(collection(db, 'appointments'), {
+          ...sessionRecordPayload,
+          paymentProofDataUrl: finalReceiptData || undefined,
+          paymentProofFileName: paymentReceiptFile?.name || 'receipt.jpg'
+        }),
+        resolvedUserId ? setDoc(doc(db, 'users', resolvedUserId), {
+          lastCounselingSession: {
+            sessionId,
+            preferredDate,
+            preferredTime,
+            purpose,
+            status: 'pending_verification',
+            transactionId,
+            submittedAt: serverTimestamp()
+          }
+        }, { merge: true }) : Promise.resolve()
+      ]).catch(err => {
+        console.warn('Background sync note:', err);
+      });
 
       setIsSubmitting(false);
       setSubmittedRecord(fullRecord);
