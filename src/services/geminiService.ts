@@ -96,53 +96,45 @@ async function callDirectGeminiRestAPI(
   systemInstruction: string,
   apiKey: string
 ): Promise<string> {
-  const models = ['gemini-3.7-flash', 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
-  let lastError: any = null;
+  const model = 'gemini-3.1-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  
+  const payload: any = {
+    contents,
+  };
 
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      
-      const payload: any = {
-        contents,
-      };
-
-      if (systemInstruction) {
-        payload.systemInstruction = {
-          parts: [{ text: systemInstruction }]
-        };
-      }
-
-      let signal: AbortSignal | undefined = undefined;
-      if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
-        signal = AbortSignal.timeout(12000);
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal,
-      });
-
-      if (!response.ok) {
-        continue;
-      }
-
-      const data = await response.json();
-      const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (generatedText && typeof generatedText === 'string' && generatedText.trim()) {
-        return generatedText.trim();
-      }
-    } catch (err: any) {
-      lastError = err;
-    }
+  if (systemInstruction) {
+    payload.systemInstruction = {
+      parts: [{ text: systemInstruction }]
+    };
   }
 
-  throw lastError || new Error("All Gemini REST model attempts exhausted.");
+  let signal: AbortSignal | undefined = undefined;
+  if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    signal = AbortSignal.timeout(1500);
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error("Fast API request failed");
+  }
+
+  const data = await response.json();
+  const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (generatedText && typeof generatedText === 'string' && generatedText.trim()) {
+    return generatedText.trim();
+  }
+
+  throw new Error("Empty response");
 }
 
 /**

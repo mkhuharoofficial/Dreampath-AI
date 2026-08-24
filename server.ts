@@ -86,39 +86,26 @@ async function startServer() {
     contents: any,
     systemInstruction?: string
   ): Promise<string | null> => {
-    for (let i = 0; i < CANDIDATE_MODELS.length; i++) {
-      const model = CANDIDATE_MODELS[i];
-      try {
-        const config: any = {};
-        if (systemInstruction) {
-          config.systemInstruction = systemInstruction;
-        }
-
-        const response = await ai.models.generateContent({
-          model,
-          contents,
-          config,
-        });
-
-        if (response && response.text && response.text.trim()) {
-          return response.text.trim();
-        }
-      } catch (err: any) {
-        const errMessage = String(err?.message || err || "");
-        const isSpikeOrUnavailable = 
-          errMessage.includes("503") || 
-          errMessage.includes("high demand") || 
-          errMessage.includes("UNAVAILABLE") || 
-          errMessage.includes("429") || 
-          errMessage.includes("RESOURCE_EXHAUSTED");
-
-        if (i < CANDIDATE_MODELS.length - 1) {
-          if (isSpikeOrUnavailable) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-          continue;
-        }
+    try {
+      const config: any = {};
+      if (systemInstruction) {
+        config.systemInstruction = systemInstruction;
       }
+
+      const modelPromise = ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents,
+        config,
+      });
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1500));
+      const response: any = await Promise.race([modelPromise, timeoutPromise]);
+
+      if (response && response.text && response.text.trim()) {
+        return response.text.trim();
+      }
+    } catch {
+      // Fast timeout fallback to expert local response
     }
     return null;
   };
