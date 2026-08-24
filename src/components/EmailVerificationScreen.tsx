@@ -240,6 +240,27 @@ export default function EmailVerificationScreen({
     }
   };
 
+  const handleSkipVerification = async () => {
+    try {
+      if (email && pendingPassword) {
+        const cred = await signInWithEmailAndPassword(auth, email, pendingPassword);
+        if (onSuccessLogin) {
+          onSuccessLogin({
+            uid: cred.user.uid,
+            email: cred.user.email || email,
+            name: userData?.name || cred.user.displayName || email.split('@')[0],
+            phone: userData?.phone || '',
+            city: userData?.city || ''
+          });
+        }
+      } else {
+        onBackToLogin();
+      }
+    } catch {
+      onBackToLogin();
+    }
+  };
+
   const openWebmail = (provider: 'gmail' | 'outlook' | 'yahoo') => {
     const urls = {
       gmail: 'https://mail.google.com',
@@ -415,6 +436,17 @@ export default function EmailVerificationScreen({
                   <span>I Have Verified</span>
                 </>
               )}
+            </button>
+          </div>
+
+          {/* Didn't get email / Skip Verification option */}
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={handleSkipVerification}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors cursor-pointer"
+            >
+              Didn't receive email? Continue to Dashboard & Apply Now →
             </button>
           </div>
         </div>
