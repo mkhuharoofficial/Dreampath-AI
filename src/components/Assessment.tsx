@@ -686,6 +686,13 @@ Based on my background, goals, and answers, please provide:
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
+    let logoDataUrl: string | null = null;
+    try {
+      logoDataUrl = await getLogoDataUrl();
+    } catch {
+      logoDataUrl = null;
+    }
+
     try {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -707,10 +714,13 @@ Based on my background, goals, and answers, please provide:
         // Watermark
         try {
           doc.saveGraphicsState();
-          doc.setTextColor(241, 245, 249);
+          if (typeof (doc as any).setGState === 'function') {
+            (doc as any).setGState(new (doc as any).GState({ opacity: 0.07 }));
+          }
+          doc.setTextColor(15, 23, 42);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(36);
-          doc.text('DREAMPATH AI', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+          doc.setFontSize(38);
+          doc.text('DREAM PATHWAY', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
           doc.restoreGraphicsState();
         } catch {}
 
@@ -720,10 +730,16 @@ Based on my background, goals, and answers, please provide:
         doc.setFillColor(37, 99, 235); // Blue 600 line accent
         doc.rect(0, 15.2, pageWidth, 0.8, 'F');
 
+        if (logoDataUrl) {
+          try {
+            doc.addImage(logoDataUrl, 'PNG', margin, 2.5, 11, 11);
+          } catch {}
+        }
+
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.text('DREAMPATH AI — CAREER ASSESSMENT REPORT', margin, 10.5);
+        doc.text('DREAM PATHWAY AI — CAREER ASSESSMENT REPORT', logoDataUrl ? margin + 14 : margin, 10.5);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
@@ -739,7 +755,7 @@ Based on my background, goals, and answers, please provide:
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
-        doc.text('Dreampath AI Guidance Platform | Founder: Muhammad Khan Khuharo', margin, pageHeight - 6);
+        doc.text('Dream Pathway Career Guidance System | Founder: Muhammad Khan Khuharo', margin, pageHeight - 6);
         doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
       };
 

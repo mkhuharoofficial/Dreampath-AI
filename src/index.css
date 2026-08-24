@@ -115,6 +115,30 @@
     font-size: 10.5pt !important;
     line-height: 1.5 !important;
     overflow: visible !important;
+    padding-top: 44px !important;
+  }
+
+  /* Repeatable top header banner with Dreampath AI branding on every page */
+  body::before {
+    content: "DREAM PATHWAY AI — OFFICIAL CAREER GUIDANCE & ASSESSMENT REPORT";
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: #1e3a8a !important;
+    color: #ffffff !important;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 9pt;
+    font-weight: 800;
+    line-height: 36px;
+    text-align: center;
+    letter-spacing: 1.2px;
+    z-index: 9999;
+    border-bottom: 2px solid #3b82f6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Hide interactive non-printable elements */
@@ -165,5 +189,19 @@
   a {
     text-decoration: none !important;
     color: #1e293b !important;
+  }
+
+  body::after {
+    content: "DREAM PATHWAY — OFFICIAL CAREER GUIDANCE SYSTEM";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 32pt;
+    font-weight: 800;
+    color: rgba(15, 23, 42, 0.05) !important;
+    z-index: 9999;
+    pointer-events: none;
+    white-space: nowrap;
   }
 }
