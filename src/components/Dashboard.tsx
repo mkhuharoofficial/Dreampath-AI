@@ -8,6 +8,7 @@ import {
 import { DomainType, Degree } from '../types';
 import { DOMAINS, DEGREES } from '../data';
 import { generate2026RoadmapsPDF } from '../utils/roadmapPdfGenerator';
+import { generateCssRoadmapPDF } from '../utils/cssRoadmapPdfGenerator';
 import { LogoImage } from './LogoImage';
 
 interface DashboardProps {
@@ -23,6 +24,7 @@ export default function Dashboard({ onSelectDegree, onViewFullGuide, favoriteIds
   const [filterDuration, setFilterDuration] = useState<'All' | '1-2' | '3-4' | '5+'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isGeneratingRoadmaps, setIsGeneratingRoadmaps] = useState(false);
+  const [isGeneratingCssRoadmap, setIsGeneratingCssRoadmap] = useState(false);
 
   const handleDownloadRoadmaps = async () => {
     setIsGeneratingRoadmaps(true);
@@ -32,6 +34,17 @@ export default function Dashboard({ onSelectDegree, onViewFullGuide, favoriteIds
       console.error('Dashboard roadmaps download error:', err);
     } finally {
       setIsGeneratingRoadmaps(false);
+    }
+  };
+
+  const handleDownloadCssRoadmap = async () => {
+    setIsGeneratingCssRoadmap(true);
+    try {
+      await generateCssRoadmapPDF();
+    } catch (err) {
+      console.error('CSS Roadmap download error:', err);
+    } finally {
+      setIsGeneratingCssRoadmap(false);
     }
   };
 
@@ -356,6 +369,18 @@ export default function Dashboard({ onSelectDegree, onViewFullGuide, favoriteIds
               >
                 <Download size={15} className="text-teal-400" />
                 <span>📚 Download 2026 Roadmaps PDF</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleDownloadCssRoadmap}
+                disabled={isGeneratingCssRoadmap}
+                id="dashboard-css-roadmap-pdf-btn"
+                className="px-5 py-3.5 bg-red-950 hover:bg-red-900 text-white font-black text-xs md:text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all flex items-center gap-2 border border-red-800 cursor-pointer disabled:opacity-50"
+              >
+                <Download size={15} className="text-red-400" />
+                <span>🏛️ Download CSS Roadmap PDF (10 Pages)</span>
               </motion.button>
 
               <motion.button

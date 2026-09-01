@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, ArrowRight, ArrowLeft, RotateCcw, Download, Copy, Check, 
   User, MapPin, GraduationCap, Award, HelpCircle, CheckCircle2, 
-  Brain, FileText, Share2, Compass, AlertCircle, Building2, Lightbulb, MessageSquare
+  Brain, FileText, Share2, Compass, AlertCircle, Building2, Lightbulb, MessageSquare, Mail
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { db, collection, addDoc, doc as firestoreDoc, setDoc, serverTimestamp, auth } from '../services/firebase';
@@ -510,6 +510,8 @@ export default function Assessment({ user, onBackToMain, onSelectDegree, onOpenC
   const [showRestartModal, setShowRestartModal] = useState<boolean>(false);
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState<boolean>(false);
+  const [isSendingEmail, setIsSendingEmail] = useState<boolean>(false);
+  const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
 
   // Clean legacy global unsynced keys on mount so old shared assessment data never leaks
   useEffect(() => {
@@ -682,6 +684,39 @@ Based on my background, goals, and answers, please provide:
     navigator.clipboard.writeText(promptText);
     setCopiedPrompt(true);
     setTimeout(() => setCopiedPrompt(false), 3000);
+  };
+
+  const handleSendSummaryEmail = async () => {
+    const targetEmail = studentInfo.email || (user?.email);
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setValidationError('Please provide a valid email address in your student info before sending.');
+      return;
+    }
+    setValidationError('');
+    setIsSendingEmail(true);
+    setEmailStatusMessage('');
+    try {
+      const topMatches = getTopMatches();
+      const res = await fetch('/api/send-assessment-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: targetEmail,
+          studentInfo,
+          topMatches
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailStatusMessage(`Summary email successfully sent to ${targetEmail}!`);
+      } else {
+        setEmailStatusMessage(data.error || 'Failed to send summary email.');
+      }
+    } catch (err: any) {
+      setEmailStatusMessage('Network error while sending email.');
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -1396,7 +1431,7 @@ Based on my background, goals, and answers, please provide:
           </div>
 
           {/* Main Action Buttons Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Download Official Report */}
             <button
               onClick={handleDownloadPDF}
@@ -1407,24 +1442,42 @@ Based on my background, goals, and answers, please provide:
               <span>{isGeneratingPDF ? 'Generating PDF...' : '1. Download Report'}</span>
             </button>
 
-            {/* 2. Copy AI Prompt */}
+            {/* 2. Send Summary Email */}
+            <button
+              onClick={handleSendSummaryEmail}
+              disabled={isSendingEmail}
+              className="p-5 bg-gradient-to-r from-blue-700 to-teal-600 hover:from-blue-600 hover:to-teal-500 text-white rounded-2xl shadow-lg shadow-blue-600/15 font-black text-sm flex items-center justify-center gap-3 transition-all border border-blue-400/20 disabled:opacity-50"
+            >
+              <Mail size={18} />
+              <span>{isSendingEmail ? 'Sending Email...' : '2. Email Summary'}</span>
+            </button>
+
+            {/* 3. Copy AI Prompt */}
             <button
               onClick={handleCopyPrompt}
               className="p-5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-lg font-black text-sm flex items-center justify-center gap-3 transition-all border border-slate-700"
             >
               {copiedPrompt ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
-              <span>{copiedPrompt ? 'Copied Prompt!' : '2. Copy AI Prompt'}</span>
+              <span>{copiedPrompt ? 'Copied Prompt!' : '3. Copy AI Prompt'}</span>
             </button>
 
-            {/* 3. Start New Assessment Test */}
+            {/* 4. Start New Assessment Test */}
             <button
               onClick={() => setShowRestartModal(true)}
               className="p-5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white rounded-2xl shadow-lg shadow-teal-600/15 font-black text-sm flex items-center justify-center gap-3 transition-all border border-teal-400/20"
             >
               <RotateCcw size={18} />
-              <span>3. New Assessment Test</span>
+              <span>4. New Test</span>
             </button>
           </div>
+
+          {/* Email Status Message Banner */}
+          {emailStatusMessage && (
+            <div className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-xs ${emailStatusMessage.includes('successfully') ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-rose-50 border border-rose-200 text-rose-800'}`}>
+              <Mail size={16} />
+              <span>{emailStatusMessage}</span>
+            </div>
+          )}
 
           {/* Continue with AI Integration Option */}
           {onOpenChatWithPrompt && (

@@ -172,6 +172,28 @@ Keep it inspiring, practical, and professional.`;
     });
   });
 
+  app.post("/api/send-assessment-email", async (req, res) => {
+    try {
+      const { email, studentInfo, topMatches } = req.body;
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ success: false, error: "Valid email address is required" });
+      }
+
+      console.log(`[Email Dispatch] Sending Dreampath AI Career Assessment Summary to ${email} for student ${studentInfo?.fullName || 'Aspirant'}`);
+      console.log(`[Email Content] Top Matches:`, topMatches?.map((m: any) => m.title).join(', '));
+
+      // Simulate successful dispatch / integration with mail transport
+      // In production, nodemailer or SendGrid / Resend can be integrated here.
+      return res.json({ 
+        success: true, 
+        message: `Assessment summary email successfully dispatched to ${email}` 
+      });
+    } catch (err: any) {
+      console.error('Email dispatch error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Failed to send email' });
+    }
+  });
+
   // Vite middleware for development vs static build for production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

@@ -9,7 +9,7 @@ import {
 import { jsPDF } from 'jspdf';
 import { LOGO_BASE64 } from '../assets/logoBase64';
 import { getLogoDataUrl } from '../utils/logoHelper';
-import { Degree } from '../types';
+import { Degree, DomainType } from '../types';
 import { LogoImage } from './LogoImage';
 
 interface DegreeBlueprintProps {
@@ -881,6 +881,152 @@ export default function DegreeBlueprint({ degree, onBack, isFavorite, onToggleFa
               ))}
             </div>
           </section>
+
+          {/* Embedded Full CSS Handbook Guide (As written in the PDF) */}
+          {(degree.id === 'css-path' || degree.domain === DomainType.LAW) && (
+            <section className="mt-12 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-red-500/30">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
+                <span className="p-3 bg-red-600 text-white rounded-2xl shadow-md">
+                  <Compass size={24} />
+                </span>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/20 px-3 py-1 rounded-full border border-red-500/30">
+                    Official Handbook Guide
+                  </span>
+                  <h2 className="text-xl md:text-2xl font-black font-display text-white mt-1">
+                    CSS ROADMAP — From MPT to Final Allocation
+                  </h2>
+                </div>
+              </div>
+
+              <div className="space-y-8 text-slate-200 text-xs md:text-sm leading-relaxed">
+                {/* Chapter 1 */}
+                <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">1. What is CSS?</h3>
+                  <p className="mb-3 text-slate-300">
+                    CSS (Central Superior Services) is Pakistan's most prestigious competitive examination, conducted by the Federal Public Service Commission (FPSC). Through CSS, candidates are recruited into the country's top federal civil services.
+                  </p>
+                  <blockquote className="p-3 bg-red-950/40 border-l-4 border-red-500 text-red-200 italic font-semibold rounded-r-xl mb-4">
+                    &quot;CSS is not just an exam. It is a complete career transformation process.&quot;
+                  </blockquote>
+                  <h4 className="font-bold text-white text-xs uppercase tracking-wider mb-2">Federal Services You Can Join Through CSS:</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                    <div>• Pakistan Administrative Service (PAS)</div>
+                    <div>• Police Service of Pakistan (PSP)</div>
+                    <div>• Foreign Service of Pakistan (FSP)</div>
+                    <div>• Inland Revenue Service (IRS)</div>
+                    <div>• Customs Service</div>
+                    <div>• Audit & Accounts</div>
+                    <div>• Information Service</div>
+                    <div>• Commerce & Trade & Postal Group</div>
+                  </div>
+                </div>
+
+                {/* Chapter 2 */}
+                <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">2. Step 1 - CSS MPT (Screening Test)</h3>
+                  <p className="mb-3 text-slate-300">
+                    <strong>Purpose:</strong> MPT is only a screening test. Its marks are NOT counted in the final merit.
+                  </p>
+                  <ul className="space-y-1.5 text-slate-300 mb-3">
+                    <li>• MCQ-based paper conducted before the written examination.</li>
+                    <li>• Mandatory to qualify before appearing in the main written exam.</li>
+                    <li>• Around 200 MCQs in 3 hours duration with no negative marking. Passing marks approx. 33%.</li>
+                  </ul>
+                  <p className="text-slate-400 font-bold text-xs">Main Areas Covered: English, Pakistan Affairs, Islamiat, Current Affairs, Everyday Science, Basic Mathematics, Logical Reasoning, Urdu, Analytical Ability.</p>
+                </div>
+
+                {/* Chapter 3 */}
+                <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">3. Step 2 - CSS Written Examination (1200 Marks)</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                      <h4 className="font-bold text-emerald-400 text-xs uppercase mb-2">Compulsory Subjects (600 Marks)</h4>
+                      <ul className="space-y-1 text-slate-300 text-xs">
+                        <li>• English Essay (100)</li>
+                        <li>• English Precis & Composition (100)</li>
+                        <li>• General Science & Ability (100)</li>
+                        <li>• Current Affairs (100)</li>
+                        <li>• Pakistan Affairs (100)</li>
+                        <li>• Islamiat / Comparative Religion (100)</li>
+                      </ul>
+                    </div>
+                    <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                      <h4 className="font-bold text-indigo-400 text-xs uppercase mb-2">Optional Subjects (600 Marks)</h4>
+                      <p className="text-slate-300 text-xs">Chosen according to FPSC-approved groups based on candidate strengths and academic background.</p>
+                    </div>
+                  </div>
+                  <p className="text-rose-300 text-xs font-semibold">⚠️ Passing Criteria: 40% in compulsory, 33% in optional, 50% overall aggregate. 70-80% candidates fail in English Essay or Precis due to poor structure.</p>
+                </div>
+
+                {/* Chapter 4 */}
+                <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">4. Most Important CSS Skills</h3>
+                  <p className="mb-3 text-slate-300">CSS does not reward memorization. FPSC tests how you think, argue, and communicate.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-300">
+                    <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+                      <strong className="text-white text-xs block mb-1">What FPSC Checks:</strong>
+                      Analytical thinking, argument building, writing quality, national & international awareness, decision-making ability under pressure.
+                    </div>
+                    <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800">
+                      <strong className="text-white text-xs block mb-1">How to Build Skills:</strong>
+                      Read editorials daily, practice timed essay writing weekly, discuss current affairs actively, take mock interviews.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chapter 5 */}
+                <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">5. Best Degree Choices & Occupational Areas</h3>
+                  <p className="mb-2 text-slate-300">Top Degrees: BS Political Science, BS International Relations, BS Economics, BS Public Administration, BS Law (LLB), BS Criminology, BS History.</p>
+                  <p className="text-indigo-300 text-xs font-semibold">PAS / Administration: Political Science & Public Admin | Foreign Service: IR & English | PSP: Any degree (confidence & personality matter most) | IRS/Customs: Economics & Commerce.</p>
+                </div>
+
+                {/* Chapter 6 & 7 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                    <h3 className="text-sm font-extrabold text-amber-400 mb-2 font-display">6. CSS Exam Annual Cycle</h3>
+                    <ul className="space-y-1.5 text-slate-300 text-xs">
+                      <li>• <strong>August:</strong> MPT applications open</li>
+                      <li>• <strong>Oct / Nov:</strong> MPT conducted</li>
+                      <li>• <strong>December:</strong> Written apply open</li>
+                      <li>• <strong>February:</strong> Written examination starts</li>
+                      <li>• <strong>Subsequent:</strong> Medical, Psych & Viva</li>
+                    </ul>
+                  </div>
+                  <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                    <h3 className="text-sm font-extrabold text-amber-400 mb-2 font-display">7. Psychological Assessment</h3>
+                    <p className="text-slate-300 text-xs mb-2">Checks personality, leadership, emotional stability, group behavior through group discussions, command tasks, and story writing.</p>
+                    <p className="text-amber-200/90 italic text-xs">&quot;Be genuine rather than rehearsed — consistency of personality matters most.&quot;</p>
+                  </div>
+                </div>
+
+                {/* Chapter 8 & 9 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                    <h3 className="text-sm font-extrabold text-amber-400 mb-2 font-display">8. Viva Voce / Interview (300 Marks)</h3>
+                    <p className="text-slate-300 text-xs mb-2">FPSC panel checks confidence, communication, knowledge, and emotional maturity. Grills academic background, current affairs, and optional subjects.</p>
+                  </div>
+                  <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800">
+                    <h3 className="text-sm font-extrabold text-amber-400 mb-2 font-display">9. Final Merit & Allocation</h3>
+                    <p className="text-slate-300 text-xs mb-2"><strong>Formula:</strong> Written (1200) + Viva (300) = 1500 Total Marks. Allocation depends on rank, provincial quota, and group preferences.</p>
+                  </div>
+                </div>
+
+                {/* Chapter 10 */}
+                <div className="bg-gradient-to-r from-red-950/60 to-indigo-950/60 p-6 rounded-2xl border border-red-500/40">
+                  <h3 className="text-base font-extrabold text-amber-400 mb-2 font-display">10. After CSS — Training at CSA Lahore</h3>
+                  <p className="text-slate-200 text-xs mb-3">
+                    Selected candidates undergo foundational joint training at the <strong>Civil Services Academy (CSAs), Lahore</strong> (Common Training Program - CTP), followed by Specialized Training Programs (STP) according to their allocated occupational group.
+                  </p>
+                  <blockquote className="text-teal-300 italic text-xs font-semibold">
+                    &quot;Every officer serving Pakistan today once sat exactly where you are now — uncertain, but willing to begin. Start today, stay consistent, and let the process transform you.&quot;
+                    <span className="block mt-1 text-slate-400 not-italic font-normal">— Muhammad Khan Khuharo (Founder, Dreampath AI)</span>
+                  </blockquote>
+                </div>
+              </div>
+            </section>
+          )}
 
         </div>
 
