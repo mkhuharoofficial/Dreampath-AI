@@ -25,7 +25,7 @@ interface LayoutProps {
   children: React.ReactNode;
   currentContext: string;
   onOpenAssessment: () => void;
-  onNavigate: (screen: 'landing' | 'bridge' | 'dashboard' | 'degree' | 'guide' | 'assessment' | 'blog' | 'appointment' | 'admin' | 'auth' | 'google-chat') => void;
+  onNavigate: (screen: 'landing' | 'bridge' | 'dashboard' | 'degree' | 'guide' | 'assessment' | 'blog' | 'appointment' | 'admin' | 'auth') => void;
   onOpenAuthModal: () => void;
   onLogout?: () => void;
   user: { uid?: string; name: string; email: string; phone?: string; city?: string } | null;
@@ -165,10 +165,7 @@ export default function Layout({
           <button onClick={() => onNavigate('blog')} className="hover:text-indigo-600 transition-colors cursor-pointer">
             Blog
           </button>
-          <button onClick={() => onNavigate('google-chat')} className="text-teal-700 hover:text-teal-800 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-50 border border-teal-200/70">
-            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-            <span>Google Chat</span>
-          </button>
+
           <button onClick={onOpenAssessment} className="hover:text-indigo-600 transition-colors cursor-pointer">
             Self-Assessment
           </button>
@@ -273,10 +270,7 @@ export default function Layout({
             <button onClick={() => { onNavigate('blog'); setIsMobileMenuOpen(false); }} className="block w-full text-left py-2 font-extrabold text-xs uppercase text-slate-800 border-b border-slate-100">
               Blog / Career Articles
             </button>
-            <button onClick={() => { onNavigate('google-chat'); setIsMobileMenuOpen(false); }} className="block w-full text-left py-2 font-extrabold text-xs uppercase text-teal-700 border-b border-slate-100 flex items-center justify-between">
-              <span>Google Chat Spaces</span>
-              <span className="px-2 py-0.5 text-[9px] font-black rounded-full bg-teal-100 text-teal-800 uppercase">Live</span>
-            </button>
+
             <button onClick={() => { onOpenAssessment(); setIsMobileMenuOpen(false); }} className="block w-full text-left py-2 font-extrabold text-xs uppercase text-indigo-600 border-b border-slate-100">
               Self-Assessment
             </button>

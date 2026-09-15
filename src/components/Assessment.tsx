@@ -8,7 +8,7 @@ import {
 import jsPDF from 'jspdf';
 import { db, collection, addDoc, doc as firestoreDoc, setDoc, serverTimestamp, auth } from '../services/firebase';
 import { DEGREES } from '../data';
-import { Degree } from '../types';
+import { Degree, DomainType } from '../types';
 import { getLogoDataUrl } from '../utils/logoHelper';
 import { LogoImage } from './LogoImage';
 
@@ -619,39 +619,91 @@ export default function Assessment({ user, onBackToMain, onSelectDegree, onOpenC
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Logic to calculate top recommendations
+  // Logic to determine User Domain strictly based on Q3 and Q1
+  const getUserDomain = (): DomainType => {
+    const q3 = answers[3];
+    const q1 = answers[1];
+
+    if (q3 === 'A') return DomainType.TECHNOLOGY;
+    if (q3 === 'B') return DomainType.HEALTH;
+    if (q3 === 'C') return DomainType.ENGINEERING;
+    if (q3 === 'D') return DomainType.BUSINESS;
+    if (q3 === 'E') return DomainType.ARTS;
+    if (q3 === 'F') return DomainType.LAW;
+    if (q3 === 'G') return DomainType.NATURAL_SCIENCES;
+
+    if (q1 === 'A') return DomainType.ENGINEERING;
+    if (q1 === 'B') return DomainType.HEALTH;
+    if (q1 === 'C') return DomainType.TECHNOLOGY;
+    if (q1 === 'D') return DomainType.BUSINESS;
+    if (q1 === 'E') return DomainType.SOCIAL_SCIENCES;
+
+    return DomainType.TECHNOLOGY;
+  };
+
+  const getUserTrackType = (): 'short_course' | 'degree' => {
+    const q8 = answers[8];
+    if (q8 === 'A') return 'short_course';
+    return 'degree';
+  };
+
+  // Strict domain and track filtering for recommendations
   const getTopMatches = (): Degree[] => {
-    let scores: Record<string, number> = {};
-    DEGREES.forEach(deg => { scores[deg.id] = 0; });
+    const domain = getUserDomain();
+    const track = getUserTrackType();
 
-    const q1 = answers[1]; // Background
-    const q3 = answers[3]; // Main interest
-    const q4 = answers[4]; // Work env
-    const q7 = answers[7]; // Tech & AI
+    // Strict domain filtering: ONLY degrees belonging exclusively to the user's selected domain
+    let domainDegrees = DEGREES.filter(deg => deg.domain === domain);
+    if (domainDegrees.length === 0) {
+      domainDegrees = DEGREES;
+    }
 
-    // Q1 Background weight
-    if (q1 === 'A') { scores['bs-cs'] += 2; scores['bs-se'] += 2; scores['bs-ai'] += 2; }
-    if (q1 === 'B') { scores['mbbs'] += 3; scores['bds'] += 3; scores['dpt'] += 3; }
-    if (q1 === 'C') { scores['bs-cs'] += 4; scores['bs-se'] += 4; scores['bs-ai'] += 4; scores['bs-ds'] += 4; }
-    if (q1 === 'D') { scores['bba'] += 4; scores['bs-fintech'] += 4; }
-    if (q1 === 'E') { scores['llb'] += 3; scores['bs-uiux'] += 3; scores['bba'] += 2; }
+    // Short courses vs Degree track separation
+    if (track === 'short_course') {
+      const shortCourses = domainDegrees.filter(deg => 
+        deg.category === 'Skill' || 
+        deg.category === 'Diploma' || 
+        deg.duration.toLowerCase().includes('year') ||
+        deg.duration.toLowerCase().includes('month')
+      );
+      if (shortCourses.length > 0) {
+        domainDegrees = shortCourses;
+      }
+    } else {
+      const degreeTracks = domainDegrees.filter(deg => 
+        deg.category !== 'Skill' && deg.category !== 'Diploma'
+      );
+      if (degreeTracks.length > 0) {
+        domainDegrees = degreeTracks;
+      }
+    }
 
-    // Q3 Main Interest
-    if (q3 === 'A') { scores['bs-cs'] += 5; scores['bs-se'] += 5; scores['bs-ai'] += 5; scores['bs-ds'] += 5; }
-    if (q3 === 'B') { scores['mbbs'] += 5; scores['bds'] += 5; scores['dpt'] += 5; }
-    if (q3 === 'C') { scores['bs-cs'] += 2; scores['bs-se'] += 2; }
-    if (q3 === 'D') { scores['bba'] += 5; scores['bs-fintech'] += 5; }
-    if (q3 === 'E') { scores['bs-uiux'] += 5; }
-    if (q3 === 'F') { scores['llb'] += 5; }
+    return domainDegrees.slice(0, 3);
+  };
 
-    // Q4 Work Env
-    if (q4 === 'A') { scores['bs-cs'] += 3; scores['bs-se'] += 3; scores['bs-uiux'] += 3; }
-    if (q4 === 'B') { scores['mbbs'] += 3; scores['bds'] += 3; }
-    if (q4 === 'D') { scores['bba'] += 3; scores['bs-fintech'] += 3; }
+  const getRecommendedUniversities = (): string[] => {
+    const domain = getUserDomain();
+    const budget = answers[11];
+    
+    let unis: string[] = [];
+    if (domain === DomainType.TECHNOLOGY) {
+      unis = ['NUST Islamabad', 'FAST-NUCES (Islamabad, Lahore, Karachi)', 'GIKI Swabi', 'LUMS Lahore', 'IBA Karachi', 'ITU Lahore', 'COMSATS University'];
+    } else if (domain === DomainType.HEALTH) {
+      unis = ['Aga Khan University Karachi', 'King Edward Medical University Lahore', 'Dow University of Health Sciences Karachi', 'Allama Iqbal Medical College Lahore', 'Shifa Tameer-e-Millat University Islamabad'];
+    } else if (domain === DomainType.ENGINEERING) {
+      unis = ['NUST Islamabad', 'PIEAS Islamabad', 'UET Lahore', 'NED University Karachi', 'GIKI Swabi'];
+    } else if (domain === DomainType.BUSINESS) {
+      unis = ['LUMS Lahore', 'IBA Karachi', 'NUST Business School Islamabad', 'IBA Sukkur', 'Institute of Business Management (IoBM) Karachi'];
+    } else if (domain === DomainType.LAW) {
+      unis = ['LUMS Lahore', 'Pakistan College of Law Lahore', 'SM Law College Karachi', 'International Islamic University Islamabad', 'University of Sindh Jamshoro'];
+    } else {
+      unis = ['Quaid-e-Azam University Islamabad', 'University of the Punjab Lahore', 'University of Karachi', 'Islamia University Bahawalpur'];
+    }
 
-    // Sort DEGREES by scores
-    const sorted = [...DEGREES].sort((a, b) => (scores[b.id] || 0) - (scores[a.id] || 0));
-    return sorted.slice(0, 3);
+    if (budget === 'A') {
+      return unis.filter(u => u.includes('UET') || u.includes('NUST') || u.includes('PIEAS') || u.includes('Quaid-e-Azam') || u.includes('NED') || u.includes('Punjab') || u.includes('Karachi') || u.includes('King Edward') || u.includes('Dow'));
+    }
+    return unis;
   };
 
   const generateAIPrompt = (): string => {
@@ -661,7 +713,7 @@ export default function Assessment({ user, onBackToMain, onSelectDegree, onOpenC
       return `- ${q.title}: ${selectedOpt ? selectedOpt.label + ' (' + selectedOpt.description + ')' : 'Not answered'}`;
     }).join('\n');
 
-    return `Assalam-o-Alaikum Dreampath AI! Here is my completed 12-question Career Self-Assessment profile:
+    return `Assalam-o-Alaikum dreampath AI! Here is my completed 12-question Career Self-Assessment profile:
 
 STUDENT PROFILE:
 - Name: ${studentInfo.fullName}
@@ -672,10 +724,10 @@ STUDENT PROFILE:
 ASSESSMENT ANSWERS:
 ${qSummary}
 
-Based on my background, goals, and answers, please provide:
-1. Detailed analysis of my top 3 recommended career pathways in Pakistan.
+Based on my domain stream, academic background, and answers, please provide:
+1. Detailed analysis of my top recommended career pathways in Pakistan for ${getUserDomain()}.
 2. Recommended entrance tests (e.g., NUST NET, FAST NUCES, MDCAT, ECAT, LAT) and key preparation timeline for 2026/2027.
-3. Top public and private universities suited for my city/province and budget.
+3. Top public and private Pakistani universities suited for my city/province and budget.
 4. Actionable next steps for the next 6 months to build high-demand skills.`;
   };
 
@@ -736,6 +788,7 @@ Based on my background, goals, and answers, please provide:
       });
 
       const topMatches = getTopMatches();
+      const recommendedUnis = getRecommendedUniversities();
       const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
       const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
       const margin = 14;
@@ -744,18 +797,17 @@ Based on my background, goals, and answers, please provide:
 
       let currentPage = 1;
 
-      // Header & Running Footer helper
+      // Header & Running Footer helper with dreampath AI branding
       const addHeaderAndFooter = (pageNum: number) => {
-        // Watermark
         try {
           doc.saveGraphicsState();
           if (typeof (doc as any).setGState === 'function') {
-            (doc as any).setGState(new (doc as any).GState({ opacity: 0.07 }));
+            (doc as any).setGState(new (doc as any).GState({ opacity: 0.06 }));
           }
           doc.setTextColor(15, 23, 42);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(38);
-          doc.text('DREAM PATHWAY', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
+          doc.setFontSize(36);
+          doc.text('DREAMPATH AI', pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
           doc.restoreGraphicsState();
         } catch {}
 
@@ -774,7 +826,7 @@ Based on my background, goals, and answers, please provide:
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.text('DREAM PATHWAY AI — CAREER ASSESSMENT REPORT', logoDataUrl ? margin + 14 : margin, 10.5);
+        doc.text('DREAMPATH AI — CAREER ASSESSMENT REPORT', logoDataUrl ? margin + 14 : margin, 10.5);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
@@ -790,62 +842,55 @@ Based on my background, goals, and answers, please provide:
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
-        doc.text('Dream Pathway Career Guidance System | Founder: Muhammad Khan Khuharo', margin, pageHeight - 6);
+        doc.text('dreampath AI Career Guidance Platform | Founder: Muhammad Khan Khuharo', margin, pageHeight - 6);
         doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
       };
 
-      // PAGE 1: Start
+      // ================= PAGE 1: STUDENT PROFILE & TOP MATCHES =================
       addHeaderAndFooter(currentPage);
 
-      let yPos = 24;
+      let yPos = 22;
 
       // Title Card
       doc.setFillColor(15, 23, 42);
-      doc.roundedRect(margin, yPos, contentWidth, 22, 2.5, 2.5, 'F');
+      doc.roundedRect(margin, yPos, contentWidth, 20, 2.5, 2.5, 'F');
 
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text('CAREER SELF-ASSESSMENT REPORT', margin + 6, yPos + 8.5);
+      doc.setFontSize(13);
+      doc.text('CAREER SELF-ASSESSMENT REPORT & PATHWAY FIT', margin + 6, yPos + 8);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(56, 189, 248);
-      doc.text('Tailored Academic Pathways & Degree Fit Analysis for Students in Pakistan', margin + 6, yPos + 15.5);
+      doc.text(`Selected Domain Stream: ${getUserDomain()} | Track: ${getUserTrackType() === 'short_course' ? 'Short Skill Courses' : 'Degree Track'}`, margin + 6, yPos + 14.5);
 
-      yPos += 26;
+      yPos += 24;
 
       // Student Profile Card
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(margin, yPos, contentWidth, 28, 2.5, 2.5, 'FD');
+      doc.roundedRect(margin, yPos, contentWidth, 26, 2, 2, 'FD');
 
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text(`Student: ${studentInfo.fullName}`, margin + 5, yPos + 7);
+      doc.setFontSize(10.5);
+      doc.text(`Student Name: ${studentInfo.fullName}`, margin + 5, yPos + 7);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(51, 65, 85);
-      doc.text(`Location: ${studentInfo.city}, ${studentInfo.province}`, margin + 5, yPos + 14);
-      doc.text(`Education Level: ${studentInfo.educationLevel}`, margin + 5, yPos + 21);
+      doc.text(`Location: ${studentInfo.city}, ${studentInfo.province}`, margin + 5, yPos + 13.5);
+      doc.text(`Education Level: ${studentInfo.educationLevel}`, margin + 5, yPos + 20);
 
-      doc.text(`Academic Marks: ${studentInfo.academicPercentage}`, margin + 95, yPos + 14);
+      doc.text(`Academic Marks: ${studentInfo.academicPercentage}`, margin + 95, yPos + 13.5);
       if (studentInfo.email) {
-        doc.text(`Email: ${studentInfo.email}`, margin + 95, yPos + 21);
+        doc.text(`Email: ${studentInfo.email}`, margin + 95, yPos + 20);
       }
 
-      yPos += 34;
+      yPos += 31;
 
-      // Section: Top Recommended Pathways
-      if (yPos > printableBottom - 35) {
-        doc.addPage();
-        currentPage++;
-        addHeaderAndFooter(currentPage);
-        yPos = 24;
-      }
-
+      // Section Header: Top Recommended Pathways
       doc.setFillColor(241, 245, 249);
       doc.rect(margin, yPos, contentWidth, 7, 'F');
       doc.setFillColor(37, 99, 235);
@@ -854,58 +899,44 @@ Based on my background, goals, and answers, please provide:
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9.5);
-      doc.text('TOP RECOMMENDED DEGREE & CAREER PATHWAYS', margin + 6, yPos + 5);
+      doc.text(`STRICTLY FILTERED RECOMMENDATIONS FOR ${getUserDomain().toUpperCase()}`, margin + 6, yPos + 5);
 
-      yPos += 11;
+      yPos += 10;
 
       topMatches.forEach((deg, idx) => {
-        if (yPos > printableBottom - 24) {
-          doc.addPage();
-          currentPage++;
-          addHeaderAndFooter(currentPage);
-          yPos = 24;
-        }
-
         doc.setFillColor(248, 250, 252);
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(margin, yPos, contentWidth, 20, 2, 2, 'FD');
+        doc.roundedRect(margin, yPos, contentWidth, 22, 2, 2, 'FD');
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(79, 70, 229);
-        doc.text(`#${idx + 1}  ${deg.title} (${deg.category})`, margin + 5, yPos + 6);
+        doc.text(`#${idx + 1}  ${deg.title}`, margin + 5, yPos + 6);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(30, 41, 59); // Slate 800 for high contrast
+        doc.setFontSize(8);
+        doc.setTextColor(30, 41, 59);
         const startingSal = deg.salaryTable?.[0] ? `${deg.salaryTable[0].level}: ${deg.salaryTable[0].salary}` : 'High Demand';
-        doc.text(`Duration: ${deg.duration}  |  Domain: ${deg.domain}`, margin + 5, yPos + 11.5);
-        doc.text(`Category: ${deg.category}  |  Starting Salary: ${startingSal}`, margin + 5, yPos + 16.5);
+        doc.text(`Duration: ${deg.duration}  |  Category: ${deg.category}  |  Domain: ${deg.domain}`, margin + 5, yPos + 12);
+        doc.text(`Starting Salary Range: ${startingSal}`, margin + 5, yPos + 17.5);
 
-        yPos += 23;
+        yPos += 25;
       });
 
-      yPos += 3;
+      // ================= PAGE 2 (CLEAN NEW PAGE): 12-QUESTION RESPONSES =================
+      doc.addPage();
+      currentPage++;
+      addHeaderAndFooter(currentPage);
+      yPos = 22;
 
-      // Section: 12-Question Breakdown
-      if (yPos > printableBottom - 30) {
-        doc.addPage();
-        currentPage++;
-        addHeaderAndFooter(currentPage);
-        yPos = 24;
-      }
-
-      doc.setFillColor(241, 245, 249);
-      doc.rect(margin, yPos, contentWidth, 7, 'F');
-      doc.setFillColor(37, 99, 235);
-      doc.rect(margin, yPos, 3.5, 7, 'F');
-
-      doc.setTextColor(15, 23, 42);
+      doc.setFillColor(15, 23, 42);
+      doc.roundedRect(margin, yPos, contentWidth, 14, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.text('12-QUESTION SELF-ASSESSMENT RESPONSES', margin + 6, yPos + 5);
+      doc.setFontSize(11);
+      doc.text('DETAILED 12-QUESTION SELF-ASSESSMENT RESPONSES', margin + 6, yPos + 9);
 
-      yPos += 11;
+      yPos += 18;
 
       ASSESSMENT_QUESTIONS.forEach((q) => {
         const selectedOptId = answers[q.id];
@@ -913,31 +944,89 @@ Based on my background, goals, and answers, please provide:
         const ansText = selectedOpt ? `${selectedOpt.label} — ${selectedOpt.description || ''}` : 'Not answered';
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        const splitAnswer = doc.splitTextToSize(ansText, contentWidth - 14);
-        const itemBlockHeight = 5 + (splitAnswer.length * 4.3) + 3;
+        doc.setFontSize(8);
+        const splitAnswer = doc.splitTextToSize(ansText, contentWidth - 12);
+        const itemBlockHeight = 5 + (splitAnswer.length * 4) + 3;
 
         if (yPos + itemBlockHeight > printableBottom) {
           doc.addPage();
           currentPage++;
           addHeaderAndFooter(currentPage);
-          yPos = 24;
+          yPos = 22;
         }
 
-        // Question Title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(15, 23, 42);
-        doc.text(`Q${q.id}.  ${q.title}:`, margin + 2, yPos + 4);
+        doc.text(`Q${q.id}. ${q.title}:`, margin + 2, yPos + 4);
 
-        // Answer Text (Line-by-line render)
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(30, 41, 59); // Slate 800
+        doc.setTextColor(30, 41, 59);
         for (let li = 0; li < splitAnswer.length; li++) {
-          doc.text(splitAnswer[li], margin + 8, yPos + 8.5 + (li * 4.3));
+          doc.text(splitAnswer[li], margin + 6, yPos + 8.5 + (li * 4));
         }
 
         yPos += itemBlockHeight;
+      });
+
+      // ================= PAGE 3 (CLEAN NEW PAGE): RECOMMENDED UNIVERSITIES & ACTION PLAN =================
+      doc.addPage();
+      currentPage++;
+      addHeaderAndFooter(currentPage);
+      yPos = 22;
+
+      doc.setFillColor(15, 23, 42);
+      doc.roundedRect(margin, yPos, contentWidth, 14, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('RECOMMENDED PAKISTANI UNIVERSITIES & NEXT STEPS', margin + 6, yPos + 9);
+
+      yPos += 18;
+
+      // Recommended Universities Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(margin, yPos, contentWidth, 38, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Top Universities Matching Your Stream & Budget:', margin + 6, yPos + 8);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(51, 65, 85);
+      let uniY = yPos + 15;
+      recommendedUnis.slice(0, 5).forEach((u, ui) => {
+        doc.text(`• ${u}`, margin + 10, uniY);
+        uniY += 5.5;
+      });
+
+      yPos += 45;
+
+      // Action Plan Box
+      doc.setFillColor(241, 245, 249);
+      doc.roundedRect(margin, yPos, contentWidth, 42, 2, 2, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text('dreampath AI Action Plan for Next 6 Months:', margin + 6, yPos + 8);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 41, 59);
+      let actY = yPos + 15;
+      const actions = [
+        '1. Focus on core entrance test preparation (NUST NET, FAST, MDCAT, ECAT or LAT based on stream).',
+        '2. Build practical project portfolio or practical skill certification matching your top matched career.',
+        '3. Track admission announcements and deadline dates across national university portals.',
+        '4. Utilize dreampath AI interactive mentors for continuous guidance and mock interview prep.'
+      ];
+      actions.forEach((act) => {
+        doc.text(act, margin + 10, actY);
+        actY += 6;
       });
 
       // Save report

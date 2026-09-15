@@ -532,7 +532,7 @@ export default function BookAppointment({
               What Happens Next?
             </p>
             <p className="text-slate-600">
-              Our administrative desk will verify your payment receipt transfer of PKR 500 to <strong>Muhammad Khan (03293690697)</strong>. Once verified, your status will be confirmed and you will receive your personal Google Meet video room link via WhatsApp and email.
+              Our administrative desk will confirm your counseling session. Once verified, you will receive your personal Google Meet video room link via WhatsApp and email.
             </p>
           </div>
 
@@ -888,7 +888,7 @@ export default function BookAppointment({
               </div>
             </div>
 
-            {/* Step 4: Payment Details & Receipt Upload */}
+            {/* Step 4: Fee Payment & Receipt Upload (PKR 500) */}
             <div className="space-y-4 pt-4 border-t border-slate-200">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <DollarSign size={16} className="text-emerald-600" />
@@ -1041,7 +1041,7 @@ export default function BookAppointment({
                 )}
               </button>
               <p className="text-[11px] text-center text-slate-400 mt-2 font-medium">
-                🔒 Safe & secure submission. Records and Base64 receipt data are stored directly inside Firestore.
+                🔒 Safe & secure submission. Records and self-assessment data are stored securely inside Firestore.
               </p>
             </div>
           </form>

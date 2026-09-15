@@ -8,7 +8,6 @@ import Assessment from './components/Assessment';
 import Blog from './components/Blog';
 import BookAppointment from './components/BookAppointment';
 import AdminDashboard from './components/AdminDashboard';
-import GoogleChatWorkspace from './components/GoogleChatWorkspace';
 import AuthModal from './components/AuthModal';
 import AuthPage from './components/AuthPage';
 import Layout from './components/Layout';
@@ -26,8 +25,7 @@ export type ScreenState =
   | 'blog' 
   | 'appointment' 
   | 'admin'
-  | 'auth'
-  | 'google-chat';
+  | 'auth';
 
 export default function App() {
   const ADMIN_UID = "qwUnad3ZkZhqb2DQu8RnbSVsv3X2";
@@ -110,10 +108,6 @@ export default function App() {
       }
       if (hash === '#auth' || hash === '#login' || pathname.endsWith('/auth') || pathname.endsWith('/login')) {
         setScreen('auth');
-        return;
-      }
-      if (hash === '#google-chat' || hash === '#chat-spaces' || pathname.endsWith('/google-chat') || pathname.endsWith('/chat-spaces')) {
-        setScreen('google-chat');
         return;
       }
 
@@ -350,12 +344,7 @@ export default function App() {
           />
         )}
 
-        {screen === 'google-chat' && (
-          <GoogleChatWorkspace 
-            onNavigateHome={() => handleNavigate('landing')}
-            onSelectDegree={handleSelectDegree}
-          />
-        )}
+
 
         {screen === 'degree' && selectedDegree && (
           <DegreeBlueprint 
