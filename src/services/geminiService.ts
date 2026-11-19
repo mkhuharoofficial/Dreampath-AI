@@ -58,6 +58,43 @@ export interface ChatOptions {
   mode?: ChatMode;
 }
 
+class ApiHttpError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function extractApiError(res: Response, fallbackMessage: string): Promise<ApiHttpError> {
+  const raw = await res.text().catch(() => '');
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.error && typeof parsed.error === 'string') {
+        return new ApiHttpError(parsed.error, res.status);
+      }
+    } catch {
+      // Non-JSON response (e.g., 404 HTML or Vercel proxy timeout)
+    }
+  }
+
+  if (res.status === 404) {
+    return new ApiHttpError(
+      'AI backend endpoint (/api/gemini) was not found. Ensure the /api serverless functions are deployed and GEMINI_API_KEY is configured.',
+      404
+    );
+  }
+  if (res.status === 504) {
+    return new ApiHttpError(
+      'Dreampath AI took too long to respond. Please switch to Fast mode or retry.',
+      504
+    );
+  }
+
+  return new ApiHttpError(`${fallbackMessage} (HTTP ${res.status})`, res.status);
+}
+
 /**
  * Generates a fast contextual career insight tip via the server-side Gemini endpoint.
  */
@@ -71,11 +108,11 @@ export const getAISuggestion = async (
     body: JSON.stringify({ context, userContext }),
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.error || 'Unable to load AI insight right now. Please try again.');
+    throw await extractApiError(res, 'Unable to load AI insight right now. Please try again.');
   }
 
+  const data = await res.json().catch(() => ({}));
   if (!data?.text || typeof data.text !== 'string') {
     throw new Error('Empty response received from AI service.');
   }
@@ -103,11 +140,11 @@ export const chatWithMentor = async (
     }),
   });
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.error || 'Unable to connect to Dreampath AI. Please try again.');
+    throw await extractApiError(res, 'Unable to connect to Dreampath AI. Please try again.');
   }
 
+  const data = await res.json().catch(() => ({}));
   if (!data?.text || typeof data.text !== 'string') {
     throw new Error('Empty response received from AI service.');
   }
@@ -118,9 +155,39 @@ export const chatWithMentor = async (
   };
 };
 
+function processSseEventBlock(
+  rawEvent: string,
+  onDelta: (chunk: string) => void,
+  onModel: (model: string) => void
+) {
+  const lines = rawEvent.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.startsWith('data: ')) continue;
+    const payloadStr = line.slice(6).trim();
+    if (!payloadStr) continue;
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(payloadStr);
+    } catch {
+      continue;
+    }
+
+    if (parsed.error) {
+      throw new Error(parsed.error);
+    }
+    if (typeof parsed.chunk === 'string' && parsed.chunk.length > 0) {
+      onDelta(parsed.chunk);
+    }
+    if (parsed.model) {
+      onModel(parsed.model);
+    }
+  }
+}
+
 /**
  * Multi-turn streaming chat handler via Server-Sent Events (SSE).
- * Delivers real-time chunks to `onChunk` so answers appear immediately and clearly.
+ * Falls back cleanly to standard /api/gemini/chat if streaming is buffered/unavailable on a hosting edge.
  */
 export const streamChatWithMentor = async (
   history: ChatMessage[],
@@ -128,72 +195,112 @@ export const streamChatWithMentor = async (
   onChunk: (chunkText: string) => void,
   options?: ChatOptions
 ): Promise<ChatResponseResult> => {
-  const res = await fetch('/api/gemini/chat/stream', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      history,
-      message: currentMessage,
-      context: options?.context,
-      userContext: options?.userContext,
-      mode: options?.mode || 'balanced',
-    }),
-  });
+  let fullText = '';
+  let usedModel: string | undefined;
+
+  const fallbackToNonStreaming = async (): Promise<ChatResponseResult> => {
+    const result = await chatWithMentor(history, currentMessage, options);
+    onChunk(result.text);
+    return result;
+  };
+
+  let res: Response;
+  try {
+    res = await fetch('/api/gemini/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        history,
+        message: currentMessage,
+        context: options?.context,
+        userContext: options?.userContext,
+        mode: options?.mode || 'balanced',
+      }),
+    });
+  } catch {
+    return fallbackToNonStreaming();
+  }
 
   if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData?.error || 'Unable to connect to Dreampath AI. Please try again.');
+    const apiErr = await extractApiError(res, 'Unable to connect to Dreampath AI. Please try again.');
+    // For client/key/quota errors, throw immediately; for transient proxy/stream route issues, try non-streaming endpoint
+    if ([400, 401, 403, 429].includes(apiErr.status)) {
+      throw apiErr;
+    }
+    try {
+      return await fallbackToNonStreaming();
+    } catch (fallbackErr: any) {
+      throw fallbackErr instanceof Error ? fallbackErr : apiErr;
+    }
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await res.json().catch(() => ({}));
+    if (data?.text && typeof data.text === 'string') {
+      onChunk(data.text);
+      return { text: data.text, model: data.model };
+    }
+    if (data?.error) {
+      throw new Error(data.error);
+    }
   }
 
   if (!res.body) {
-    // Fallback to standard non-streaming response if ReadableStream is unavailable
-    return chatWithMentor(history, currentMessage, options);
+    return fallbackToNonStreaming();
   }
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let fullText = '';
-  let usedModel: string | undefined;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        buffer += decoder.decode();
+        break;
+      }
 
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split('\n\n');
-    buffer = events.pop() || '';
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() || '';
 
-    for (const rawEvent of events) {
-      const lines = rawEvent.split('\n');
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const payloadStr = line.slice(6).trim();
-        if (!payloadStr) continue;
-
-        let parsed: any;
-        try {
-          parsed = JSON.parse(payloadStr);
-        } catch {
-          continue;
-        }
-
-        if (parsed.error) {
-          throw new Error(parsed.error);
-        }
-        if (typeof parsed.chunk === 'string' && parsed.chunk.length > 0) {
-          fullText += parsed.chunk;
-          onChunk(parsed.chunk);
-        }
-        if (parsed.model) {
-          usedModel = parsed.model;
-        }
+      for (const rawEvent of events) {
+        processSseEventBlock(
+          rawEvent,
+          (delta) => {
+            fullText += delta;
+            onChunk(delta);
+          },
+          (model) => {
+            usedModel = model;
+          }
+        );
       }
     }
+
+    if (buffer.trim()) {
+      processSseEventBlock(
+        buffer,
+        (delta) => {
+          fullText += delta;
+          onChunk(delta);
+        },
+        (model) => {
+          usedModel = model;
+        }
+      );
+    }
+  } catch (streamErr) {
+    if (!fullText.trim()) {
+      return fallbackToNonStreaming();
+    }
+    throw streamErr;
   }
 
   if (!fullText.trim()) {
-    throw new Error('No response text was received from Dreampath AI. Please try again.');
+    return fallbackToNonStreaming();
   }
 
   return { text: fullText, model: usedModel };
