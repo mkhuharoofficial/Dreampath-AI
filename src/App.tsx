@@ -244,6 +244,9 @@ export default function App() {
       <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)', zIndex: 9999 }}></div>
       <Layout 
         currentContext={getContext()} 
+        currentScreen={screen}
+        selectedDegree={selectedDegree}
+        favoriteIds={favoriteIds}
         onOpenAssessment={handleOpenAssessment} 
         onNavigate={handleNavigate}
         onOpenAuthModal={() => handleNavigate('auth')}

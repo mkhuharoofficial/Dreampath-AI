@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, MessageSquare, Sparkles, X, Send, Bot, User, HelpCircle, 
   Download, FileText, Menu, Calendar, BookOpen, UserCheck, ShieldCheck, LogOut, LogIn,
-  CheckCircle2, AlertCircle, RefreshCw
+  CheckCircle2, AlertCircle, RefreshCw, RotateCcw, Zap
 } from 'lucide-react';
 import { 
   getAISuggestion, 
-  chatWithMentor 
+  streamChatWithMentor,
+  ChatMessage,
+  ChatMode
 } from '../services/geminiService';
+import { Degree } from '../types';
+import { buildStudentCareerContext } from '../utils/studentContextHelper';
 import { generate2026RoadmapsPDF } from '../utils/roadmapPdfGenerator';
 import { LogoImage } from './LogoImage';
 import { 
@@ -24,6 +28,9 @@ import {
 interface LayoutProps {
   children: React.ReactNode;
   currentContext: string;
+  currentScreen?: string;
+  selectedDegree?: Degree | null;
+  favoriteIds?: string[];
   onOpenAssessment: () => void;
   onNavigate: (screen: 'landing' | 'bridge' | 'dashboard' | 'degree' | 'guide' | 'assessment' | 'blog' | 'appointment' | 'admin' | 'auth') => void;
   onOpenAuthModal: () => void;
@@ -36,6 +43,9 @@ interface LayoutProps {
 export default function Layout({ 
   children, 
   currentContext, 
+  currentScreen,
+  selectedDegree,
+  favoriteIds = [],
   onOpenAssessment, 
   onNavigate,
   onOpenAuthModal,
@@ -54,11 +64,16 @@ export default function Layout({
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  const INITIAL_GREETING: ChatMessage = {
+    role: 'model',
+    content: "Assalam-o-Alaikum! I'm your **Dreampath AI Career Assistant**. Ask me anything about Pakistani universities, entry tests (MDCAT, NET, ECAT, LAT), degree roadmaps, scholarships, or career prospects!"
+  };
+
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model', content: string }[]>([
-    { role: 'model', content: "Assalam-o-Alaikum! I'm your Dreampath AI Career Assistant. Ask me anything about university admissions, job salaries, degree roadmaps, or career paths in Pakistan!" }
-  ]);
+  const [chatMode, setChatMode] = useState<ChatMode>('balanced');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([INITIAL_GREETING]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     if (chatPromptToTrigger) {
@@ -80,47 +95,169 @@ export default function Layout({
     }
   }, [chatMessages, isChatOpen, isChatLoading]);
 
+  const getLiveStudentContext = () =>
+    buildStudentCareerContext({
+      user,
+      currentScreen,
+      currentContext,
+      selectedDegree,
+      favoriteIds,
+    });
+
   const handleSuggest = async () => {
     setIsSuggestOpen(true);
     setIsSuggestLoading(true);
-    const tip = await getAISuggestion(currentContext);
-    setSuggestion(tip);
-    setIsSuggestLoading(false);
+    setSuggestion('');
+    try {
+      const studentCtx = getLiveStudentContext();
+      const tip = await getAISuggestion(currentContext, studentCtx);
+      setSuggestion(tip);
+    } catch (err: any) {
+      setSuggestion(err?.message || 'Unable to load AI insight right now. Please try again.');
+    } finally {
+      setIsSuggestLoading(false);
+    }
+  };
+
+  const handleResetChat = () => {
+    if (isChatLoading) return;
+    setChatMessages([INITIAL_GREETING]);
+    setLastFailedPrompt(null);
   };
 
   const handleChatSubmit = async (e?: React.FormEvent, customMsg?: string) => {
     if (e) e.preventDefault();
-    const messageToSend = customMsg || chatInput;
-    if (!messageToSend.trim() || isChatLoading) return;
+    const messageToSend = (customMsg || chatInput).trim();
+    if (!messageToSend || isChatLoading) return;
 
     if (!customMsg) setChatInput('');
-    const newHistory = [...chatMessages, { role: 'user' as const, content: messageToSend }];
-    setChatMessages(newHistory);
+    setLastFailedPrompt(null);
+
+    const historyForRequest = chatMessages.filter(m => !m.isError);
+    const userMsg: ChatMessage = { role: 'user', content: messageToSend };
+    const placeholderModelMsg: ChatMessage = { role: 'model', content: '' };
+
+    setChatMessages([...historyForRequest, userMsg, placeholderModelMsg]);
     setIsChatLoading(true);
 
     try {
-      const response = await chatWithMentor(chatMessages, messageToSend);
-      setChatMessages(prev => [...prev, { role: 'model', content: response.text }]);
+      const studentCtx = getLiveStudentContext();
+      await streamChatWithMentor(
+        historyForRequest,
+        messageToSend,
+        (chunkText) => {
+          setChatMessages(prev => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === 'model' && !updated[lastIdx].isError) {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: updated[lastIdx].content + chunkText,
+              };
+            }
+            return updated;
+          });
+        },
+        { context: currentContext, userContext: studentCtx, mode: chatMode }
+      );
     } catch (err: any) {
-      console.warn('Chat error caught gracefully:', err);
-      setChatMessages(prev => [
-        ...prev, 
-        { 
-          role: 'model', 
-          content: "Our AI assistant is currently updating. Please try again in a few moments." 
+      console.error('Gemini chat error:', err);
+      const errMsg = err?.message || 'Unable to get a response right now. Please try again.';
+      setLastFailedPrompt(messageToSend);
+      setChatMessages(prev => {
+        const updated = [...prev];
+        const lastIdx = updated.length - 1;
+        if (lastIdx >= 0 && updated[lastIdx].role === 'model' && !updated[lastIdx].content) {
+          updated[lastIdx] = { role: 'model', content: errMsg, isError: true };
+          return updated;
         }
-      ]);
+        return [...updated, { role: 'model', content: errMsg, isError: true }];
+      });
     } finally {
       setIsChatLoading(false);
     }
   };
 
-  const quickQuestions = [
-    "What are top CS universities in Pakistan?",
-    "Software vs Data Science career prospects?",
-    "Medical vs Engineering salaries in Pakistan?",
-    "How to prepare for NUST & FAST entrance tests?"
-  ];
+  const renderInlineFormatting = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        return <strong key={i} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+        return <code key={i} className="px-1 py-0.5 bg-slate-100 text-indigo-700 rounded text-[11px] font-mono">{part.slice(1, -1)}</code>;
+      }
+      return <React.Fragment key={i}>{part}</React.Fragment>;
+    });
+  };
+
+  const renderFormattedMessage = (content: string, isUser: boolean) => {
+    if (isUser) {
+      return <span className="whitespace-pre-line">{content}</span>;
+    }
+
+    const lines = content.split('\n');
+    return (
+      <div className="space-y-1.5">
+        {lines.map((rawLine, idx) => {
+          const line = rawLine.trimEnd();
+          if (!line.trim()) {
+            return <div key={idx} className="h-1" />;
+          }
+          if (line.startsWith('### ') || line.startsWith('## ') || line.startsWith('# ')) {
+            const headingText = line.replace(/^#{1,3}\s+/, '');
+            return (
+              <p key={idx} className="font-extrabold text-indigo-700 text-xs pt-1">
+                {renderInlineFormatting(headingText)}
+              </p>
+            );
+          }
+          const bulletMatch = line.match(/^[\-\*•]\s+(.*)$/);
+          if (bulletMatch) {
+            return (
+              <div key={idx} className="flex items-start gap-1.5 pl-1">
+                <span className="text-teal-600 font-black mt-0.5">•</span>
+                <span className="flex-1">{renderInlineFormatting(bulletMatch[1])}</span>
+              </div>
+            );
+          }
+          const numberedMatch = line.match(/^(\d+[\.\)])\s+(.*)$/);
+          if (numberedMatch) {
+            return (
+              <div key={idx} className="flex items-start gap-1.5 pl-1">
+                <span className="text-indigo-600 font-extrabold shrink-0">{numberedMatch[1]}</span>
+                <span className="flex-1">{renderInlineFormatting(numberedMatch[2])}</span>
+              </div>
+            );
+          }
+          return <p key={idx}>{renderInlineFormatting(line)}</p>;
+        })}
+      </div>
+    );
+  };
+
+  const activeStudentContext = isChatOpen ? getLiveStudentContext() : null;
+
+  const quickQuestions = selectedDegree
+    ? [
+        `Entry test & merit for ${selectedDegree.title}?`,
+        `Top Pakistani universities for ${selectedDegree.title}?`,
+        `Job market & salary for ${selectedDegree.title}?`,
+        `Skills I should build for ${selectedDegree.title}?`
+      ]
+    : activeStudentContext?.assessmentProgress?.completed
+      ? [
+          `Best universities in Pakistan for ${activeStudentContext.assessmentProgress.targetDomain || 'my stream'}?`,
+          `Which scholarships can I apply for?`,
+          `How should I prepare for upcoming entry tests?`,
+          `Should I take short courses alongside my degree?`
+        ]
+      : [
+          "What are top CS universities in Pakistan?",
+          "Software vs Data Science career prospects?",
+          "Medical vs Engineering salaries in Pakistan?",
+          "How to prepare for NUST & FAST entrance tests?"
+        ];
 
   const [isGeneratingRoadmapsPDF, setIsGeneratingRoadmapsPDF] = useState(false);
 
@@ -411,38 +548,132 @@ export default function Layout({
                     <h3 className="font-extrabold text-sm">Dreampath AI Assistant</h3>
                     <p className="text-[10px] text-teal-400 font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping" />
-                      <span>Online • AI Career Mentor</span>
+                      <span>Online • {chatMode === 'fast' ? 'Fast Mode' : 'Career Mentor'}</span>
                     </p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setIsChatOpen(false)} 
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Close chat"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setChatMode(prev => prev === 'balanced' ? 'fast' : 'balanced')}
+                    disabled={isChatLoading}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-colors cursor-pointer ${
+                      chatMode === 'fast'
+                        ? 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                    }`}
+                    title={chatMode === 'fast' ? 'Fast mode active (switch to Standard)' : 'Switch to Fast reply mode'}
+                  >
+                    <Zap size={11} />
+                    <span>{chatMode === 'fast' ? 'Fast' : 'Standard'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetChat}
+                    disabled={isChatLoading}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-40"
+                    title="Start new conversation"
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                  <button 
+                    onClick={() => setIsChatOpen(false)} 
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Close chat"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
+
+              {/* Active Student Progress & Degree Context Bar */}
+              {activeStudentContext && (
+                <div className="px-4 py-2 bg-indigo-50/90 border-b border-indigo-100 flex items-center justify-between gap-2 text-[11px] shrink-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Sparkles size={12} className="text-indigo-600 shrink-0" />
+                    <span className="font-bold text-indigo-950 truncate">
+                      {selectedDegree
+                        ? `Degree: ${selectedDegree.title}`
+                        : activeStudentContext.assessmentProgress.completed
+                          ? `Assessment Done${activeStudentContext.assessmentProgress.targetDomain ? ` • ${activeStudentContext.assessmentProgress.targetDomain}` : ''}`
+                          : activeStudentContext.assessmentProgress.answeredCount > 0
+                            ? `Assessment: ${activeStudentContext.assessmentProgress.answeredCount}/12 answered`
+                            : activeStudentContext.careerStage}
+                    </span>
+                  </div>
+                  {activeStudentContext.educationLevel && (
+                    <span className="shrink-0 px-2 py-0.5 rounded-md bg-white border border-indigo-200 text-indigo-700 font-bold text-[10px]">
+                      {activeStudentContext.educationLevel}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Chat Message Stream */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[88%] p-3 rounded-2xl text-xs font-medium leading-relaxed whitespace-pre-line shadow-xs ${
-                      msg.role === 'user' 
-                        ? 'bg-indigo-600 text-white rounded-tr-none' 
-                        : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
-                    }`}>
-                      {msg.content}
+                {chatMessages.map((msg, idx) => {
+                  const isLastModelLoading = isChatLoading && idx === chatMessages.length - 1 && msg.role === 'model';
+                  if (isLastModelLoading && !msg.content) {
+                    return (
+                      <div key={idx} className="flex items-start gap-2 justify-start">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Bot size={14} />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-indigo-600 font-semibold italic p-3 bg-white border border-indigo-100 rounded-2xl rounded-tl-none shadow-xs">
+                          <RefreshCw size={12} className="animate-spin text-indigo-600" />
+                          <span>Dreampath AI is thinking...</span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={idx} className={`flex items-start gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role === 'model' && (
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                          msg.isError ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
+                        }`}>
+                          {msg.isError ? <AlertCircle size={14} /> : <Bot size={14} />}
+                        </div>
+                      )}
+                      <div className={`max-w-[82%] p-3 rounded-2xl text-xs font-medium leading-relaxed shadow-xs ${
+                        msg.role === 'user' 
+                          ? 'bg-indigo-600 text-white rounded-tr-none' 
+                          : msg.isError
+                            ? 'bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-none'
+                            : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                      }`}>
+                        {msg.isError ? (
+                          <div className="space-y-2">
+                            <p>{msg.content}</p>
+                            {lastFailedPrompt && idx === chatMessages.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleChatSubmit(undefined, lastFailedPrompt)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                              >
+                                <RefreshCw size={11} />
+                                <span>Retry</span>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            {renderFormattedMessage(msg.content, msg.role === 'user')}
+                            {isLastModelLoading && (
+                              <span className="inline-block w-1.5 h-3.5 ml-1 bg-indigo-500 animate-pulse align-middle rounded-xs" />
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
+                          <User size={14} />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
-                {isChatLoading && (
-                  <div className="flex items-center gap-2 text-xs text-indigo-600 font-semibold italic p-2 bg-indigo-50/70 border border-indigo-100 rounded-xl max-w-fit">
-                    <RefreshCw size={12} className="animate-spin text-indigo-600" />
-                    <span>Dreampath AI is thinking...</span>
-                  </div>
-                )}
+                  );
+                })}
                 <div ref={chatEndRef} />
               </div>
 
@@ -457,7 +688,7 @@ export default function Layout({
                     type="button"
                     onClick={() => handleChatSubmit(undefined, q)}
                     disabled={isChatLoading}
-                    className="shrink-0 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-lg text-[11px] font-semibold transition-all cursor-pointer"
+                    className="shrink-0 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-lg text-[11px] font-semibold transition-all cursor-pointer disabled:opacity-50"
                   >
                     {q}
                   </button>

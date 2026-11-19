@@ -1,196 +1,418 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, ThinkingLevel } from "@google/genai";
 
-const CANDIDATE_MODELS = [
-  "gemini-3.7-flash",
-  "gemini-flash-latest",
-  "gemini-2.5-flash",
-  "gemini-3.1-flash-lite",
-];
+type ChatRole = "user" | "model";
+
+interface RawHistoryItem {
+  role: ChatRole;
+  content: string;
+  isError?: boolean;
+}
+
+const GENERAL_CHAT_MODEL = "gemini-4-hydrogen";
+const FAST_CHAT_MODEL = "gemini-3.1-flash-lite";
+
+const SYSTEM_INSTRUCTION_CHAT = `You are "Dreampath AI Career Mentor", a warm, knowledgeable, and practical career & higher education advisor for students in Pakistan (Matric, O-Levels, FSc, ICS, A-Levels, and undergraduate applicants).
+
+Your responsibilities:
+- Provide clear, accurate, structured guidance on Pakistani degree programs (CS, AI, Software Engineering, MBBS, BDS, Allied Health, Engineering, BBA, FinTech, CA/ACCA, LLB, CSS/PMS, Social Sciences, Arts & Design, and Short Skill Courses).
+- Advise on HEC-recognized Pakistani universities (e.g., NUST, FAST-NUCES, LUMS, IBA, GIKI, PIEAS, UET, COMSATS, KEMU, AKU, Dow, Punjab University, QAU) and entry tests (MDCAT, NUST NET, FAST Test, ECAT, NAT, LAT, SAT).
+- Share realistic 2026 Pakistan & remote/international salary expectations, scholarship options (HEC Need-Based, Ehsaas, PEEF, LUMS NOP, Ihsan Trust), and actionable next steps.
+- Maintain a supportive, clear, well-organized tone using concise headings and bullet points so students can read answers easily.
+- Always tailor your advice directly to the student's current career stage, academic profile, assessment progress, and selected degree context provided below.`;
+
+function formatUserContextBlock(context?: string, userContext?: any): string {
+  const lines: string[] = [];
+
+  if (userContext && typeof userContext === "object") {
+    if (userContext.careerStage) {
+      lines.push(`- Current Career Stage: ${userContext.careerStage}`);
+    } else if (context) {
+      lines.push(`- Current Screen Context: ${context}`);
+    }
+
+    const profileParts = [
+      userContext.studentName ? `Name: ${userContext.studentName}` : "",
+      userContext.educationLevel ? `Education: ${userContext.educationLevel}` : "",
+      userContext.academicPercentage ? `Marks/Grade: ${userContext.academicPercentage}` : "",
+      userContext.city || userContext.province
+        ? `Location: ${[userContext.city, userContext.province].filter(Boolean).join(", ")}`
+        : "",
+    ].filter(Boolean);
+
+    if (profileParts.length > 0) {
+      lines.push(`- Student Profile: ${profileParts.join(" | ")}`);
+    }
+
+    if (userContext.assessmentProgress) {
+      const ap = userContext.assessmentProgress;
+      const statusText = ap.completed
+        ? "Completed (12/12 questions)"
+        : ap.answeredCount > 0
+          ? `In progress (${ap.answeredCount}/${ap.totalQuestions || 12} answered, current step ${ap.step})`
+          : "Not started yet";
+      lines.push(`- Self-Assessment Status: ${statusText}`);
+      if (ap.targetDomain) {
+        lines.push(`- Assessment Target Domain: ${ap.targetDomain}`);
+      }
+      if (ap.preferredTrack) {
+        lines.push(`- Preferred Learning Track: ${ap.preferredTrack}`);
+      }
+    }
+
+    if (userContext.selectedDegree && userContext.selectedDegree.title) {
+      const deg = userContext.selectedDegree;
+      lines.push(`- Currently Selected Degree Blueprint: ${deg.title} (${deg.domain} | ${deg.category} | Duration: ${deg.duration})`);
+      if (deg.summary) {
+        lines.push(`  • Degree Summary: ${deg.summary}`);
+      }
+      if (Array.isArray(deg.universities) && deg.universities.length > 0) {
+        lines.push(`  • Key Pakistani Universities: ${deg.universities.join(", ")}`);
+      }
+      if (Array.isArray(deg.salaryBenchmarks) && deg.salaryBenchmarks.length > 0) {
+        lines.push(`  • Salary Benchmarks: ${deg.salaryBenchmarks.join(" | ")}`);
+      }
+      if (Array.isArray(deg.keySkills) && deg.keySkills.length > 0) {
+        lines.push(`  • Core Skills: ${deg.keySkills.join(", ")}`);
+      }
+    }
+
+    if (Array.isArray(userContext.savedDegrees) && userContext.savedDegrees.length > 0) {
+      lines.push(`- Student's Saved/Bookmarked Degrees: ${userContext.savedDegrees.join(", ")}`);
+    }
+
+    if (userContext.counselingBooking?.booked) {
+      lines.push(
+        `- 1-to-1 Counseling Status: Booked (${userContext.counselingBooking.status || "pending_verification"}${
+          userContext.counselingBooking.slot ? `, slot: ${userContext.counselingBooking.slot}` : ""
+        })`
+      );
+    }
+  } else if (context) {
+    lines.push(`- Current Screen Context: ${context}`);
+  }
+
+  if (lines.length === 0) {
+    return SYSTEM_INSTRUCTION_CHAT;
+  }
+
+  return `${SYSTEM_INSTRUCTION_CHAT}\n\nSTUDENT PROGRESS & ACTIVE CONTEXT:\n${lines.join("\n")}`;
+}
 
 /**
- * Intelligent domain-specific Pakistani Career Knowledge Fallback
- * Provides instant, high-quality advice if API models are experiencing temporary high-demand spikes (503/429).
+ * Safely initializes GoogleGenAI on the server with required telemetry header.
  */
-function getSmartCareerKnowledgeResponse(message: string, context?: string): string {
-  const query = `${message || ""} ${context || ""}`.toLowerCase();
+function getAI(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || !apiKey.trim()) {
+    return null;
+  }
+  return new GoogleGenAI({
+    apiKey: apiKey.trim(),
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+}
 
-  if (query.includes("cs") || query.includes("computer science") || query.includes("software") || query.includes("se") || query.includes("coding") || query.includes("programming")) {
-    return "In Pakistan's current market, BS Computer Science and BS Software Engineering offer top entry-level opportunities (PKR 90k–220k/month locally, and $1,000–$3,500/month in remote international roles). Top institutions include FAST NUCES, NUST SEECS, COMSATS, GIKI, and ITU. Focus strongly on Data Structures, problem-solving on LeetCode, modern full-stack development, and AI integration during your 2nd and 3rd years.";
+/**
+ * Sanitizes client chat history for multi-turn Gemini `ai.chats.create`:
+ * - Filters out empty or error messages
+ * - Strips any leading 'model' greeting so history starts with 'user'
+ * - Ensures strictly alternating 'user' / 'model' turns
+ */
+function sanitizeHistory(history: unknown) {
+  if (!Array.isArray(history)) return [];
+
+  const validItems = history.filter((item): item is RawHistoryItem => {
+    return (
+      Boolean(item) &&
+      typeof item === "object" &&
+      ((item as RawHistoryItem).role === "user" || (item as RawHistoryItem).role === "model") &&
+      typeof (item as RawHistoryItem).content === "string" &&
+      (item as RawHistoryItem).content.trim().length > 0 &&
+      !(item as RawHistoryItem).isError
+    );
+  });
+
+  // Drop leading model turns (e.g., the initial greeting)
+  const firstUserIdx = validItems.findIndex((m) => m.role === "user");
+  if (firstUserIdx === -1) return [];
+
+  const sliced = validItems.slice(firstUserIdx);
+  const alternating: Array<{ role: ChatRole; parts: Array<{ text: string }> }> = [];
+
+  for (const item of sliced) {
+    const last = alternating[alternating.length - 1];
+    if (last && last.role === item.role) {
+      last.parts[0].text = `${last.parts[0].text}\n\n${item.content.trim()}`;
+    } else {
+      alternating.push({
+        role: item.role,
+        parts: [{ text: item.content.trim() }],
+      });
+    }
   }
 
-  if (query.includes("ai") || query.includes("artificial intelligence") || query.includes("data science") || query.includes("machine learning")) {
-    return "BS Artificial Intelligence and BS Data Science are expanding rapidly in Pakistan. Top institutes offering specialized programs include FAST NUCES, NUST, ITU Lahore, and GIKI. Ensure you build strong foundations in Linear Algebra, Python, PyTorch/TensorFlow, and cloud deployment (AWS/GCP) alongside your core degree courses.";
+  // History passed to ai.chats.create should end with a 'model' turn before sending the next 'user' message
+  if (alternating.length > 0 && alternating[alternating.length - 1].role === "user") {
+    alternating.pop();
   }
 
-  if (query.includes("mbbs") || query.includes("medical") || query.includes("bds") || query.includes("doctor") || query.includes("mdcat") || query.includes("dpt")) {
-    return "For medical aspirants in Pakistan, MDCAT requires early, disciplined preparation focusing on UHS/NUMS/SZABMU/DUHS syllabus. While MBBS and BDS remain prestigious, high-demand allied health fields like Doctor of Physical Therapy (DPT), Medical Lab Technology (MLT), and Pharm-D also offer expanding hospital and private clinic opportunities.";
+  return alternating;
+}
+
+/**
+ * Maps Gemini API errors to clear HTTP statuses and helpful messages.
+ */
+function parseGeminiError(err: any): { status: number; message: string } {
+  const rawMessage = String(err?.message || err || "");
+  const statusCode = Number(err?.status || err?.code || 0);
+
+  if (
+    statusCode === 400 &&
+    (rawMessage.includes("API_KEY_INVALID") || rawMessage.toLowerCase().includes("api key"))
+  ) {
+    return {
+      status: 400,
+      message: "Your Gemini API key appears invalid. Please check it in the Settings > Secrets panel.",
+    };
   }
 
-  if (query.includes("nust") || query.includes("fast") || query.includes("entry test") || query.includes("net") || query.includes("ecat") || query.includes("lat")) {
-    return "For university entrance tests in Pakistan: 1) NUST NET: Focus on FSc textbook concepts, speed, and repeated past papers (Series 1–4). 2) FAST NUCES: Emphasize Advanced Math and Basic Math speed without negative marking. 3) ECAT: Strengthen Physics and Mathematics concepts. 4) HEC LAT: Review General Knowledge, English grammar, and Urdu/English essay formats.";
+  if (statusCode === 403 || rawMessage.includes("PERMISSION_DENIED")) {
+    return {
+      status: 403,
+      message: "Permission denied for the Gemini API key. Please verify your API key in the Settings > Secrets panel.",
+    };
   }
 
-  if (query.includes("business") || query.includes("bba") || query.includes("finance") || query.includes("fintech") || query.includes("accounting") || query.includes("ca")) {
-    return "For business & finance in Pakistan: BBA and BS FinTech from IBA Karachi, LUMS, NUST NBS, and LSE provide exceptional corporate recruitment. If you are interested in rigorous accounting, ICAP Chartered Accountancy (CA) or ACCA provide prestigious global mobility with high long-term financial rewards.";
+  if (statusCode === 429 || rawMessage.includes("RESOURCE_EXHAUSTED")) {
+    return {
+      status: 429,
+      message: "Gemini API rate limit or quota reached. Please wait a moment and try again, or check your billing/quota in Settings > Secrets.",
+    };
   }
 
-  if (query.includes("law") || query.includes("llb") || query.includes("advocate") || query.includes("css") || query.includes("civil service")) {
-    return "5-Year LLB requires clearing the HEC Law Admission Test (LAT) with at least 50% marks. Top institutions include Punjab University Law College, LUMS School of Law, Quaid-i-Azam University, and SZABUL Karachi. A law degree also serves as an outstanding foundation for the CSS (Central Superior Services) competitive examination.";
+  if (statusCode === 404 || rawMessage.includes("NOT_FOUND")) {
+    return {
+      status: 404,
+      message: "The requested Gemini model was not found. Please try again shortly.",
+    };
   }
 
-  if (query.includes("scholarship") || query.includes("fee") || query.includes("financial aid") || query.includes("free")) {
-    return "Key scholarship opportunities in Pakistan include: 1) HEC Need-Based Scholarships (covers full tuition + stipend across public universities), 2) Ehsaas Undergraduate Scholarship, 3) PEEF (Punjab Educational Endowment Fund), 4) Ihsan Trust Qarz-e-Hasna (interest-free loans), and 5) Merit scholarships at NUST, FAST, IBA, and LUMS (NOP).";
+  if (statusCode === 503 || rawMessage.includes("UNAVAILABLE")) {
+    return {
+      status: 503,
+      message: "Gemini AI is experiencing temporary high demand. Please retry in a few seconds.",
+    };
   }
 
-  return "Every career path has strong potential when paired with market-relevant skills, disciplined study, and continuous practical projects. Explore our 2026 Degree Blueprints to review entry tests, syllabus modules, salary benchmarks, and top Pakistani universities for your chosen field.";
+  return {
+    status: statusCode >= 400 && statusCode < 600 ? statusCode : 500,
+    message: rawMessage || "Unable to reach Gemini AI right now. Please try again.",
+  };
+}
+
+function isRetryableError(err: any): boolean {
+  const status = Number(err?.status || err?.code || 0);
+  const msg = String(err?.message || "");
+  return status === 503 || status === 500 || msg.includes("UNAVAILABLE") || msg.includes("fetch failed");
+}
+
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= maxRetries || !isRetryableError(err)) {
+        throw err;
+      }
+      attempt++;
+      await new Promise((resolve) => setTimeout(resolve, 400 * Math.pow(2, attempt - 1)));
+    }
+  }
 }
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "2mb" }));
   app.use(express.static(path.join(process.cwd(), "public")));
 
-  // Helper to safely initialize GoogleGenAI with server-side GEMINI_API_KEY or other env variables
-  const getAI = () => {
-    try {
-      const apiKey = 
-        process.env.GEMINI_API_KEY || 
-        process.env.VITE_GEMINI_API_KEY || 
-        process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
-        "";
-      if (!apiKey || !apiKey.trim()) return null;
-      return new GoogleGenAI({
-        apiKey: apiKey.trim(),
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
-      });
-    } catch {
-      return null;
-    }
-  };
-
-  /**
-   * Resilient content generation that falls back through candidates
-   * if a 503 (high demand), 429 (rate limit), or temporary unavailable state is encountered.
-   */
-  const generateResilientContent = async (
-    ai: GoogleGenAI,
-    contents: any,
-    systemInstruction?: string
-  ): Promise<string | null> => {
-    try {
-      const config: any = {};
-      if (systemInstruction) {
-        config.systemInstruction = systemInstruction;
-      }
-
-      const modelPromise = ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
-        contents,
-        config,
-      });
-
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 1500));
-      const response: any = await Promise.race([modelPromise, timeoutPromise]);
-
-      if (response && response.text && response.text.trim()) {
-        return response.text.trim();
-      }
-    } catch {
-      // Fast timeout fallback to expert local response
-    }
-    return null;
-  };
-
-  // API Endpoints for Gemini AI
+  // Fast Career Insight Suggestion Endpoint (uses gemini-3.1-flash-lite for speed)
   app.post("/api/gemini/suggest", async (req, res) => {
-    const { context } = req.body;
     const ai = getAI();
+    if (!ai) {
+      return res.status(500).json({
+        error: "Gemini API key is not configured. Please add GEMINI_API_KEY in the Settings > Secrets panel.",
+      });
+    }
 
-    if (ai) {
-      const prompt = `You are a "DreamPath AI" mentor for Pakistani students. 
-The student is currently looking at: ${context || "general career options"}. 
-Give a punchy 2-sentence motivational tip or career advice specifically for this context in the Pakistan job market for 2026. 
-Keep it inspiring, practical, and professional.`;
+    try {
+      const { context, userContext } = req.body || {};
+      const contextSummary = formatUserContextBlock(context, userContext);
+      const prompt = `Give a punchy, practical 2-sentence career insight or actionable next step specifically tailored to this student's current career stage and selected degree in Pakistan for 2026.`;
 
-      const generated = await generateResilientContent(
-        ai,
-        prompt,
-        "You are Dreampath AI Career Mentor for students in Pakistan. Be practical, inspiring, and culturally relevant."
+      const response = await withRetry(() =>
+        ai.models.generateContent({
+          model: FAST_CHAT_MODEL,
+          contents: prompt,
+          config: {
+            systemInstruction: `${contextSummary}\n\nRespond in strictly 2 concise, encouraging, practical sentences tailored to the student's current stage and degree.`,
+          },
+        })
       );
 
-      if (generated) {
-        return res.json({ text: generated, fallback: false });
+      const text = response.text?.trim();
+      if (!text) {
+        return res.status(502).json({ error: "Gemini returned an empty response. Please try again." });
       }
-    }
 
-    // Smart fallback
-    const fallbackText = getSmartCareerKnowledgeResponse("", context || "");
-    res.json({
-      text: fallbackText,
-      fallback: true,
-    });
+      return res.json({ text, model: FAST_CHAT_MODEL });
+    } catch (err: any) {
+      console.error("[Gemini Suggest Error]:", err);
+      const parsed = parseGeminiError(err);
+      return res.status(parsed.status).json({ error: parsed.message });
+    }
   });
 
+  // Multi-turn Chat Endpoint (Standard JSON)
   app.post("/api/gemini/chat", async (req, res) => {
-    const { history, message } = req.body;
     const ai = getAI();
-
-    if (ai && message) {
-      const contents = (history || []).map((m: { role: 'user' | 'model', content: string }) => ({
-        role: m.role,
-        parts: [{ text: m.content }]
-      }));
-
-      contents.push({
-        role: "user",
-        parts: [{ text: message }]
+    if (!ai) {
+      return res.status(500).json({
+        error: "Gemini API key is not configured. Please add GEMINI_API_KEY in the Settings > Secrets panel.",
       });
-
-      const systemInstruction = 
-        "You are 'Dreampath AI' Friendly Career Mentor for Pakistani students. You help them navigate career choices in Pakistan (HEC universities like NUST, FAST, LUMS, IBA, GIKI, COMSATS, entrance tests like MDCAT, ECAT, LAT, scholarships, and 2026 market demand). Be encouraging, informative, practical, and culturally aware.";
-
-      const generated = await generateResilientContent(ai, contents, systemInstruction);
-      if (generated) {
-        return res.json({ text: generated, fallback: false });
-      }
     }
 
-    // High quality smart fallback based on student question
-    const fallbackResponse = getSmartCareerKnowledgeResponse(message || "", "");
-    res.json({
-      text: fallbackResponse,
-      fallback: true,
-    });
+    const { history, message, context, userContext, mode } = req.body || {};
+    if (!message || typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "A non-empty message is required." });
+    }
+
+    const selectedModel = mode === "fast" ? FAST_CHAT_MODEL : GENERAL_CHAT_MODEL;
+    const sanitizedHistory = sanitizeHistory(history);
+    const contextualInstruction = formatUserContextBlock(context, userContext);
+
+    try {
+      const response = await withRetry(async () => {
+        const chat = ai.chats.create({
+          model: selectedModel,
+          history: sanitizedHistory,
+          config: {
+            systemInstruction: contextualInstruction,
+            ...(selectedModel === GENERAL_CHAT_MODEL
+              ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+              : {}),
+          },
+        });
+        return chat.sendMessage({ message: message.trim() });
+      });
+
+      const text = response.text?.trim();
+      if (!text) {
+        return res.status(502).json({ error: "Gemini returned an empty response. Please try again." });
+      }
+
+      return res.json({ text, model: selectedModel });
+    } catch (err: any) {
+      console.error("[Gemini Chat Error]:", err);
+      const parsed = parseGeminiError(err);
+      return res.status(parsed.status).json({ error: parsed.message });
+    }
+  });
+
+  // Multi-turn Chat Streaming Endpoint (SSE for fast, clear real-time replies)
+  app.post("/api/gemini/chat/stream", async (req, res) => {
+    const ai = getAI();
+    if (!ai) {
+      return res.status(500).json({
+        error: "Gemini API key is not configured. Please add GEMINI_API_KEY in the Settings > Secrets panel.",
+      });
+    }
+
+    const { history, message, context, userContext, mode } = req.body || {};
+    if (!message || typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "A non-empty message is required." });
+    }
+
+    const selectedModel = mode === "fast" ? FAST_CHAT_MODEL : GENERAL_CHAT_MODEL;
+    const sanitizedHistory = sanitizeHistory(history);
+    const contextualInstruction = formatUserContextBlock(context, userContext);
+
+    try {
+      const streamResponse = await withRetry(async () => {
+        const chat = ai.chats.create({
+          model: selectedModel,
+          history: sanitizedHistory,
+          config: {
+            systemInstruction: contextualInstruction,
+            ...(selectedModel === GENERAL_CHAT_MODEL
+              ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+              : {}),
+          },
+        });
+        return chat.sendMessageStream({ message: message.trim() });
+      });
+
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      if (typeof res.flushHeaders === "function") {
+        res.flushHeaders();
+      }
+
+      let hasText = false;
+      for await (const chunk of streamResponse) {
+        const c = chunk as GenerateContentResponse;
+        const delta = c.text;
+        if (delta) {
+          hasText = true;
+          res.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
+        }
+      }
+
+      if (!hasText) {
+        res.write(`data: ${JSON.stringify({ error: "Gemini returned an empty response. Please try again." })}\n\n`);
+      } else {
+        res.write(`data: ${JSON.stringify({ done: true, model: selectedModel })}\n\n`);
+      }
+      res.end();
+    } catch (err: any) {
+      console.error("[Gemini Chat Stream Error]:", err);
+      const parsed = parseGeminiError(err);
+      if (!res.headersSent) {
+        return res.status(parsed.status).json({ error: parsed.message });
+      }
+      res.write(`data: ${JSON.stringify({ error: parsed.message })}\n\n`);
+      res.end();
+    }
   });
 
   app.post("/api/send-assessment-email", async (req, res) => {
     try {
       const { email, studentInfo, topMatches } = req.body;
-      if (!email || !email.includes('@')) {
+      if (!email || !email.includes("@")) {
         return res.status(400).json({ success: false, error: "Valid email address is required" });
       }
 
-      console.log(`[Email Dispatch] Sending Dreampath AI Career Assessment Summary to ${email} for student ${studentInfo?.fullName || 'Aspirant'}`);
-      console.log(`[Email Content] Top Matches:`, topMatches?.map((m: any) => m.title).join(', '));
+      console.log(`[Email Dispatch] Sending Dreampath AI Career Assessment Summary to ${email} for student ${studentInfo?.fullName || "Aspirant"}`);
+      console.log(`[Email Content] Top Matches:`, topMatches?.map((m: any) => m.title).join(", "));
 
-      // Simulate successful dispatch / integration with mail transport
-      // In production, nodemailer or SendGrid / Resend can be integrated here.
-      return res.json({ 
-        success: true, 
-        message: `Assessment summary email successfully dispatched to ${email}` 
+      return res.json({
+        success: true,
+        message: `Assessment summary email successfully dispatched to ${email}`,
       });
     } catch (err: any) {
-      console.error('Email dispatch error:', err);
-      return res.status(500).json({ success: false, error: err.message || 'Failed to send email' });
+      console.error("Email dispatch error:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to send email" });
     }
   });
 
@@ -215,4 +437,3 @@ Keep it inspiring, practical, and professional.`;
 }
 
 startServer();
-
